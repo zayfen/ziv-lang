@@ -12,16 +12,24 @@ impl Program {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct Param {
+    pub name: String,
+    pub type_annotation: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Stmt {
     Expression(Expr),
     VariableDecl {
         name: String,
+        type_annotation: Option<String>,
         init: Option<Expr>,
         is_const: bool,
     },
     FunctionDecl {
         name: String,
-        params: Vec<String>,
+        params: Vec<Param>,
+        return_type: Option<String>,
         body: Vec<Stmt>,
     },
     Return(Option<Expr>),
@@ -101,13 +109,11 @@ mod tests {
         let stmt = Stmt::FunctionDecl {
             name: "add".to_string(),
             params: vec!["a".to_string(), "b".to_string()],
-            body: vec![
-                Stmt::Return(Some(Expr::Binary {
-                    left: Box::new(Expr::Identifier("a".to_string())),
-                    op: BinaryOp::Add,
-                    right: Box::new(Expr::Identifier("b".to_string())),
-                }))
-            ],
+            body: vec![Stmt::Return(Some(Expr::Binary {
+                left: Box::new(Expr::Identifier("a".to_string())),
+                op: BinaryOp::Add,
+                right: Box::new(Expr::Identifier("b".to_string())),
+            }))],
         };
         assert!(matches!(stmt, Stmt::FunctionDecl { .. }));
     }

@@ -7,6 +7,8 @@ description = "A modern systems programming language that compiles to native ELF
 license = "MIT OR Apache-2.0"
 
 [dependencies]
+getrandom = "0.2"
+
 # Lexer generator
 logos = "0.14"
 
@@ -33,6 +35,7 @@ scroll = "0.12"
 lalrpop = "0.20"
 
 [dev-dependencies]
+console = "=0.15.8"
 insta = "1.34"
 tempfile = "3.10"
 
