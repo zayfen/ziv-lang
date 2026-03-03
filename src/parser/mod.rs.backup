@@ -1,0 +1,196 @@
+//! Parser implementation
+
+pub mod ast;
+use ast::*;
+use crate::lexer::Token;
+
+pub type ParseResult<T> = Result<T, String>;
+
+pub struct Parser {
+    tokens: Vec<Token>,
+    current: usize,
+}
+
+impl Parser {
+    pub fn new(source: &str) -> Self {
+        let mut lexer = crate::lexer::Lexer::new(source);
+        let tokens = lexer.tokenize().unwrap_or_else(|_| vec![Token::EOF]);
+        Parser { tokens, current: 0 }
+    }
+    
+    pub fn parse(&mut self) -> ParseResult<Program> {
+        let mut statements = Vec::new();
+        
+        while !self.is_at_end() {
+            if let Some(stmt) = self.parse_stmt()? {
+                statements.push(stmt);
+            }
+        }
+        
+        Ok(Program::new(statements))
+    }
+    
+    fn parse_stmt(&mut self) -> ParseResult<Option<Stmt>> {
+        match self.peek() {
+            Some(Token::Let) | Some(Token::Const) => {
+                self.parse_var_decl()
+            },
+            
+            Some(Token::Function) => {
+                self.parse_function_decl()
+            },
+            
+            Some(Token::Return) => {
+                self.parse_return_stmt()
+            },
+            
+            Some(Token::If) => {
+                self.parse_if_stmt()
+            },
+            
+            Some(Token::While) => {
+                self.parse_while_stmt()
+            },
+            
+            Some(Token::LeftBrace) => {
+                self.parse_block()
+            },
+            
+            _ => {
+                let expr = self.parse_expr()?;
+                self.consume_semicolon()?;
+                Ok(Some(Stmt::Expression(expr)))
+            }
+        }
+    }
+    
+    fn parse_function_decl(&mut self) -> ParseResult<Option<Stmt>> {
+        self.advance(); // consume 'function'
+        
+        let name = self.consume_identifier()?;
+        
+        // Parse parameters
+        self.consume(&Token::LeftParen)?;
+        let mut params = Vec::new();
+        while !self.match_token(&Token::RightParen) {
+            let param = self.consume_identifier()?;
+            params.push(param);
+            if !self.match_token(&Token::Comma) {
+                break;
+            }
+            self.advance(); // consume comma
+        }
+        self.consume(&Token::RightParen)?;
+        
+        // Parse body
+        let body = self.parse_block_internal()?;
+        
+        Ok(Some(Stmt::FunctionDecl {
+            name,
+            params,
+            body,
+        }))
+    }
+    
+    fn parse_return_stmt(&mut self) -> ParseResult<Option<Stmt>> {
+        self.advance(); // consume 'return'
+        
+        let value = if self.match_token(&Token::Semicolon) {
+            None
+        } else {
+            Some(self.parse_expr()?)
+        };
+        
+        self.consume_semicolon()?;
+        Ok(Some(Stmt::Return(value)))
+    }
+    
+    fn parse_if_stmt(&mut self) -> ParseResult<Option<Stmt>> {
+        self.advance(); // consume 'if'
+        
+        self.consume(&Token::LeftParen)?;
+        let condition = self.parse_expr()?;
+        self.consume(&Token::RightParen)?;
+        
+        let then_branch = self.parse_block_internal()?;
+        
+        let else_branch = if self.match_token(&Token::Else) {
+            self.advance();
+            Some(self.parse_block_internal()?)
+        } else {
+            None
+        };
+        
+        Ok(Some(Stmt::If {
+            condition,
+            then_branch,
+            else_branch,
+        }))
+    }
+    
+    fn parse_while_stmt(&mut self) -> ParseResult<Option<Stmt>> {
+        self.advance(); // consume 'while'
+        
+        self.consume(&Token::LeftParen)?;
+        let condition = self.parse_expr()?;
+        self.consume(&Token::RightParen)?;
+        
+        let body = self.parse_block_internal()?;
+        
+        Ok(Some(Stmt::While {
+            condition,
+            body,
+        }))
+    }
+    
+    fn parse_block(&mut self) -> ParseResult<Option<Stmt>> {
+        let stmts = self.parse_block_internal()?;
+        Ok(Some(Stmt::Block(stmts)))
+    }
+    
+    fn parse_block_internal(&mut self) -> ParseResult<Vec<Stmt>> {
+        self.consume(&Token::LeftBrace)?;
+        
+        let mut statements = Vec::new();
+        while !self.match_token(&Token::RightBrace) && !self.is_at_end() {
+            if let Some(stmt) = self.parse_stmt()? {
+                statements.push(stmt);
+            }
+        }
+        
+        self.consume(&Token::RightBrace)?;
+        Ok(statements)
+    }
+            Some(Token::Slash) |
+            Some(Token::Percent) => Some(()),
+            _ => None,
+        }
+    }
+    
+    fn consume_multiplication(&mut self) -> ParseResult<BinaryOp> {
+        match self.peek() {
+            Some(Token::Star) => { self.advance(); Ok(BinaryOp::Mul) },
+            Some(Token::Slash) => { self.advance(); Ok(BinaryOp::Div) },
+            _ => Err("Expected multiplication operator".to_string())
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_number() {
+        let mut parser = Parser::new("42;");
+        let program = parser.parse().unwrap();
+        assert_eq!(program.statements.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_var_decl() {
+        let mut parser = Parser::new("let x = 42;");
+        let program = parser.parse().unwrap();
+        assert_eq!(program.statements.len(), 1);
+    }
+}

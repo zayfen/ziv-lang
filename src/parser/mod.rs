@@ -35,6 +35,27 @@ impl Parser {
             Some(Token::Let) | Some(Token::Const) => {
                 self.parse_var_decl()
             },
+            
+            Some(Token::Function) => {
+                self.parse_function_decl()
+            },
+            
+            Some(Token::Return) => {
+                self.parse_return_stmt()
+            },
+            
+            Some(Token::If) => {
+                self.parse_if_stmt()
+            },
+            
+            Some(Token::While) => {
+                self.parse_while_stmt()
+            },
+            
+            Some(Token::LeftBrace) => {
+                self.parse_block()
+            },
+            
             _ => {
                 let expr = self.parse_expr()?;
                 self.consume_semicolon()?;
@@ -48,6 +69,7 @@ impl Parser {
         self.advance(); // consume let/const
         
         let name = self.consume_identifier()?;
+        
         let init = if self.match_token(&Token::Equal) {
             self.advance();
             Some(self.parse_expr()?)
@@ -61,6 +83,104 @@ impl Parser {
             init,
             is_const,
         }))
+    }
+    
+    fn parse_function_decl(&mut self) -> ParseResult<Option<Stmt>> {
+        self.advance(); // consume 'function'
+        
+        let name = self.consume_identifier()?;
+        
+        // Parse parameters
+        self.consume(&Token::LeftParen)?;
+        let mut params = Vec::new();
+        while !self.match_token(&Token::RightParen) {
+            let param = self.consume_identifier()?;
+            params.push(param);
+            if !self.match_token(&Token::Comma) {
+                break;
+            }
+            self.advance(); // consume comma
+        }
+        self.consume(&Token::RightParen)?;
+        
+        // Parse body
+        let body = self.parse_block_internal()?;
+        
+        Ok(Some(Stmt::FunctionDecl {
+            name,
+            params,
+            body,
+        }))
+    }
+    
+    fn parse_return_stmt(&mut self) -> ParseResult<Option<Stmt>> {
+        self.advance(); // consume 'return'
+        
+        let value = if self.match_token(&Token::Semicolon) {
+            None
+        } else {
+            Some(self.parse_expr()?)
+        };
+        
+        self.consume_semicolon()?;
+        Ok(Some(Stmt::Return(value)))
+    }
+    
+    fn parse_if_stmt(&mut self) -> ParseResult<Option<Stmt>> {
+        self.advance(); // consume 'if'
+        
+        self.consume(&Token::LeftParen)?;
+        let condition = self.parse_expr()?;
+        self.consume(&Token::RightParen)?;
+        
+        let then_branch = self.parse_block_internal()?;
+        
+        let else_branch = if self.match_token(&Token::Else) {
+            self.advance();
+            Some(self.parse_block_internal()?)
+        } else {
+            None
+        };
+        
+        Ok(Some(Stmt::If {
+            condition,
+            then_branch,
+            else_branch,
+        }))
+    }
+    
+    fn parse_while_stmt(&mut self) -> ParseResult<Option<Stmt>> {
+        self.advance(); // consume 'while'
+        
+        self.consume(&Token::LeftParen)?;
+        let condition = self.parse_expr()?;
+        self.consume(&Token::RightParen)?;
+        
+        let body = self.parse_block_internal()?;
+        
+        Ok(Some(Stmt::While {
+            condition,
+            body,
+        }))
+    }
+    
+    fn parse_block(&mut self) -> ParseResult<Option<Stmt>> {
+        let stmts = self.parse_block_internal()?;
+        Ok(Some(Stmt::Block(stmts)))
+    }
+    
+    fn parse_block_internal(&mut self) -> ParseResult<Vec<Stmt>> {
+        self.consume(&Token::LeftBrace)?;
+        
+        let mut statements = Vec::new();
+        while !self.match_token(&Token::RightBrace) && !self.is_at_end() {
+            if let Some(stmt) = self.parse_stmt()? {
+                statements.push(stmt);
+            }
+        }
+        
+        self.consume(&Token::RightBrace)?;
+        Ok(statements)
     }
     
     fn parse_expr(&mut self) -> ParseResult<Expr> {
@@ -149,7 +269,26 @@ impl Parser {
             },
             Some(Token::Identifier(name)) => {
                 self.advance();
-                Ok(Expr::Identifier(name))
+                
+                // Check if it's a function call
+                if self.match_token(&Token::LeftParen) {
+                    self.advance();
+                    let mut args = Vec::new();
+                    while !self.match_token(&Token::RightParen) {
+                        args.push(self.parse_expr()?);
+                        if !self.match_token(&Token::Comma) {
+                            break;
+                        }
+                        self.advance();
+                    }
+                    self.consume(&Token::RightParen)?;
+                    Ok(Expr::Call {
+                        callee: name,
+                        args,
+                    })
+                } else {
+                    Ok(Expr::Identifier(name))
+                }
             },
             Some(Token::LeftParen) => {
                 self.advance();
@@ -221,12 +360,12 @@ impl Parser {
     
     fn consume_comparison(&mut self) -> ParseResult<BinaryOp> {
         match self.peek() {
-            Some(Token::EqualEqual) => { self.advance(); Ok(BinaryOp::Add) },
-            Some(Token::BangEqual) => { self.advance(); Ok(BinaryOp::Add) },
-            Some(Token::Less) => { self.advance(); Ok(BinaryOp::Add) },
-            Some(Token::LessEqual) => { self.advance(); Ok(BinaryOp::Add) },
-            Some(Token::Greater) => { self.advance(); Ok(BinaryOp::Add) },
-            Some(Token::GreaterEqual) => { self.advance(); Ok(BinaryOp::Add) },
+            Some(Token::EqualEqual) => { self.advance(); Ok(BinaryOp::Eq) },
+            Some(Token::BangEqual) => { self.advance(); Ok(BinaryOp::Ne) },
+            Some(Token::Less) => { self.advance(); Ok(BinaryOp::Lt) },
+            Some(Token::LessEqual) => { self.advance(); Ok(BinaryOp::Le) },
+            Some(Token::Greater) => { self.advance(); Ok(BinaryOp::Gt) },
+            Some(Token::GreaterEqual) => { self.advance(); Ok(BinaryOp::Ge) },
             _ => Err("Expected comparison operator".to_string())
         }
     }

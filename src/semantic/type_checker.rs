@@ -7,7 +7,6 @@ use super::types::*;
 pub type TypeCheckResult<T> = Result<T, String>;
 
 /// Type checker
-#[derive(Debug)]
 pub struct TypeChecker {
     pub symbol_table: SymbolTable,
 }
@@ -52,6 +51,94 @@ impl TypeChecker {
                 
                 Ok(())
             },
+            
+            Stmt::FunctionDecl { name, params, body } => {
+                // Enter function scope
+                self.symbol_table.enter_scope();
+                
+                // Add parameters to scope
+                for param in params {
+                    let symbol = Symbol::new(
+                        param.clone(),
+                        SymbolKind::Parameter,
+                        Type::Any,
+                        self.symbol_table.current_scope_level()
+                    );
+                    self.symbol_table.define(symbol);
+                }
+                
+                // Check body
+                for body_stmt in body {
+                    self.check_stmt(body_stmt)?;
+                }
+                
+                // Exit function scope
+                self.symbol_table.exit_scope();
+                
+                // Add function to current scope
+                let func_type = Type::Function {
+                    params: params.iter().map(|_| Type::Any).collect(),
+                    return_type: Box::new(Type::Any),
+                };
+                
+                let symbol = Symbol::new(
+                    name.clone(),
+                    SymbolKind::Function,
+                    func_type,
+                    self.symbol_table.current_scope_level()
+                );
+                self.symbol_table.define(symbol);
+                
+                Ok(())
+            },
+            
+            Stmt::Return(value) => {
+                if let Some(expr) = value {
+                    self.check_expr(expr)?;
+                }
+                Ok(())
+            },
+            
+            Stmt::If { condition, then_branch, else_branch } => {
+                self.check_expr(condition)?;
+                
+                self.symbol_table.enter_scope();
+                for stmt in then_branch {
+                    self.check_stmt(stmt)?;
+                }
+                self.symbol_table.exit_scope();
+                
+                if let Some(else_stmts) = else_branch {
+                    self.symbol_table.enter_scope();
+                    for stmt in else_stmts {
+                        self.check_stmt(stmt)?;
+                    }
+                    self.symbol_table.exit_scope();
+                }
+                
+                Ok(())
+            },
+            
+            Stmt::While { condition, body } => {
+                self.check_expr(condition)?;
+                
+                self.symbol_table.enter_scope();
+                for stmt in body {
+                    self.check_stmt(stmt)?;
+                }
+                self.symbol_table.exit_scope();
+                
+                Ok(())
+            },
+            
+            Stmt::Block(stmts) => {
+                self.symbol_table.enter_scope();
+                for stmt in stmts {
+                    self.check_stmt(stmt)?;
+                }
+                self.symbol_table.exit_scope();
+                Ok(())
+            },
         }
     }
     
@@ -60,7 +147,9 @@ impl TypeChecker {
             Expr::Literal(lit) => {
                 let ty = match lit {
                     Literal::Number(_) => Type::Int,
-                    _ => Type::Any,
+                    Literal::Float(_) => Type::Float,
+                    Literal::String(_) => Type::String,
+                    Literal::Boolean(_) => Type::Bool,
                 };
                 Ok(ty)
             },
@@ -85,9 +174,32 @@ impl TypeChecker {
                             return Err(format!("Type mismatch: {} and {}", left_type, right_type));
                         }
                     },
+                    
+                    BinaryOp::Eq | BinaryOp::Ne | BinaryOp::Lt | BinaryOp::Le | 
+                    BinaryOp::Gt | BinaryOp::Ge => Type::Bool,
+                    
+                    BinaryOp::And | BinaryOp::Or => Type::Bool,
                 };
                 
                 Ok(result_type)
+            },
+            
+            Expr::Call { callee, args } => {
+                // Check arguments
+                for arg in args {
+                    self.check_expr(arg)?;
+                }
+                
+                // Look up function
+                let func_type = self.symbol_table.lookup(callee)
+                    .map(|s| s.ty.clone())
+                    .ok_or_else(|| format!("Undefined function: {}", callee))?;
+                
+                // Return the function's return type
+                match func_type {
+                    Type::Function { return_type, .. } => Ok(*return_type),
+                    _ => Err(format!("{} is not a function", callee))
+                }
             },
         }
     }
