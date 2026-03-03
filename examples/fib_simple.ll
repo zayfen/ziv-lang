@@ -1,0 +1,11 @@
+let a = 0;
+let b = 1;
+let fib2 = a + b;
+let fib3 = b + fib2;
+let fib4 = fib2 + fib3;
+let fib5 = fib3 + fib4;
+let fib6 = fib4 + fib5;
+let fib7 = fib5 + fib6;
+let fib8 = fib6 + fib7;
+let fib9 = fib7 + fib8;
+let fib10 = fib8 + fib9;

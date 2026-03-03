@@ -9,7 +9,7 @@ pub type CodeGenResult<T> = Result<T, String>;
 
 /// Code generator trait
 pub trait CodeGenerator {
-    fn generate(&self, module: &IRModule) -> CodeGenResult<String>;
+    fn generate(&mut self, module: &IRModule) -> CodeGenResult<String>;
 }
 
 // Re-export generators

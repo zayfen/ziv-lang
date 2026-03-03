@@ -12,7 +12,7 @@ impl LLVMTextGenerator {
 }
 
 impl CodeGenerator for LLVMTextGenerator {
-    fn generate(&self, module: &IRModule) -> Result<String, String> {
+    fn generate(&mut self, module: &IRModule) -> Result<String, String> {
         let mut output = String::new();
         
         output.push_str("; LightLang LLVM IR\n\n");
@@ -35,7 +35,7 @@ mod tests {
 
     #[test]
     fn test_llvm_generator() {
-        let gen = LLVMTextGenerator::new();
+        let mut gen = LLVMTextGenerator::new();
         let module = IRModule::new();
         let result = gen.generate(&module);
         assert!(result.is_ok());

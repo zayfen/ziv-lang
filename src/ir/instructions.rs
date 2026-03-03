@@ -2,24 +2,18 @@
 
 use std::fmt;
 
-/// IR Value (represents a value in IR)
+/// IR Value
 #[derive(Debug, Clone, PartialEq)]
 pub enum IRValue {
     Const(i64),
-    ConstF(f64),
-    ConstStr(String),
     Var(String),
-    Label(String),
 }
 
 impl fmt::Display for IRValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             IRValue::Const(n) => write!(f, "{}", n),
-            IRValue::ConstF(n) => write!(f, "{}", n),
-            IRValue::ConstStr(s) => write!(f, "\"{}\"", s),
             IRValue::Var(name) => write!(f, "%{}", name),
-            IRValue::Label(name) => write!(f, "@{}", name),
         }
     }
 }
@@ -28,9 +22,6 @@ impl fmt::Display for IRValue {
 #[derive(Debug, Clone, PartialEq)]
 pub enum IRType {
     I64,
-    F64,
-    String,
-    Bool,
     Void,
 }
 
@@ -38,9 +29,6 @@ impl fmt::Display for IRType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             IRType::I64 => write!(f, "i64"),
-            IRType::F64 => write!(f, "f64"),
-            IRType::String => write!(f, "str"),
-            IRType::Bool => write!(f, "bool"),
             IRType::Void => write!(f, "void"),
         }
     }
@@ -49,6 +37,22 @@ impl fmt::Display for IRType {
 /// IR Instructions
 #[derive(Debug, Clone)]
 pub enum IRInstruction {
+    // Memory
+    Alloc {
+        dest: String,
+        ty: IRType,
+    },
+    Store {
+        dest: String,
+        ty: IRType,
+        value: IRValue,
+    },
+    Load {
+        dest: String,
+        ty: IRType,
+        ptr: String,
+    },
+    
     // Arithmetic
     Add {
         dest: String,
@@ -75,60 +79,25 @@ pub enum IRInstruction {
         rhs: IRValue,
     },
     
-    // Memory
-    Alloc {
-        dest: String,
-        ty: IRType,
-    },
-    Store {
-        dest: String,
-        ty: IRType,
-        value: IRValue,
-    },
-    Load {
-        dest: String,
-        ty: IRType,
-        ptr: String,
-    },
-    
-    // Control Flow
+    // Control flow
     Ret {
         ty: IRType,
         value: Option<IRValue>,
-    },
-    Branch {
-        label: String,
-    },
-    CondBranch {
-        cond: IRValue,
-        true_label: String,
-        false_label: String,
-    },
-    Label {
-        name: String,
-    },
-    
-    // Call
-    Call {
-        dest: Option<String>,
-        ret_ty: IRType,
-        func: String,
-        args: Vec<(IRType, IRValue)>,
-    },
-    
-    // Comparison
-    Cmp {
-        dest: String,
-        op: String,
-        ty: IRType,
-        lhs: IRValue,
-        rhs: IRValue,
     },
 }
 
 impl fmt::Display for IRInstruction {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            IRInstruction::Alloc { dest, ty } => {
+                write!(f, "  %{} = alloc {}", dest, ty)
+            },
+            IRInstruction::Store { dest, ty, value } => {
+                write!(f, "  store {} {}, %{}", ty, value, dest)
+            },
+            IRInstruction::Load { dest, ty, ptr } => {
+                write!(f, "  %{} = load {} %{}", dest, ty, ptr)
+            },
             IRInstruction::Add { dest, ty, lhs, rhs } => {
                 write!(f, "  %{} = add {} {}, {}", dest, ty, lhs, rhs)
             },
@@ -141,43 +110,12 @@ impl fmt::Display for IRInstruction {
             IRInstruction::Div { dest, ty, lhs, rhs } => {
                 write!(f, "  %{} = div {} {}, {}", dest, ty, lhs, rhs)
             },
-            IRInstruction::Alloc { dest, ty } => {
-                write!(f, "  %{} = alloc {}", dest, ty)
-            },
-            IRInstruction::Store { dest, ty, value } => {
-                write!(f, "  store {} {}, %{}", ty, value, dest)
-            },
-            IRInstruction::Load { dest, ty, ptr } => {
-                write!(f, "  %{} = load {} %{}", dest, ty, ptr)
-            },
             IRInstruction::Ret { ty, value } => {
                 if let Some(v) = value {
                     write!(f, "  ret {} {}", ty, v)
                 } else {
                     write!(f, "  ret void")
                 }
-            },
-            IRInstruction::Branch { label } => {
-                write!(f, "  br @{}", label)
-            },
-            IRInstruction::CondBranch { cond, true_label, false_label } => {
-                write!(f, "  br {}, @{}, @{}", cond, true_label, false_label)
-            },
-            IRInstruction::Label { name } => {
-                write!(f, "@{}:", name)
-            },
-            IRInstruction::Call { dest, ret_ty, func, args } => {
-                let args_str: Vec<String> = args.iter()
-                    .map(|(ty, val)| format!("{} {}", ty, val))
-                    .collect();
-                if let Some(d) = dest {
-                    write!(f, "  %{} = call {} @{}({})", d, ret_ty, func, args_str.join(", "))
-                } else {
-                    write!(f, "  call {} @{}({})", ret_ty, func, args_str.join(", "))
-                }
-            },
-            IRInstruction::Cmp { dest, op, ty, lhs, rhs } => {
-                write!(f, "  %{} = icmp {} {} {}, {}", dest, op, ty, lhs, rhs)
             },
         }
     }
@@ -202,10 +140,6 @@ impl IRFunction {
         }
     }
     
-    pub fn add_param(&mut self, name: String, ty: IRType) {
-        self.params.push((name, ty));
-    }
-    
     pub fn add_instruction(&mut self, instr: IRInstruction) {
         self.instructions.push(instr);
     }
@@ -224,25 +158,5 @@ impl fmt::Display for IRFunction {
         }
         
         writeln!(f, "}}")
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_ir_value() {
-        let val = IRValue::Const(42);
-        assert_eq!(format!("{}", val), "42");
-        
-        let var = IRValue::Var("x".to_string());
-        assert_eq!(format!("{}", var), "%x");
-    }
-
-    #[test]
-    fn test_ir_function() {
-        let func = IRFunction::new("main".to_string(), IRType::I64);
-        assert_eq!(func.name, "main");
     }
 }

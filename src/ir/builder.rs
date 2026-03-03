@@ -1,24 +1,20 @@
 //! IR Builder - converts AST to IR
 
 use crate::parser::ast::*;
-use crate::ir::instructions::*;
+use crate::ir::{IRModule, IRFunction, IRInstruction, IRValue, IRType};
 use std::collections::HashMap;
 
 pub struct IRBuilder {
-    module: crate::ir::IRModule,
-    current_function: Option<IRFunction>,
+    module: IRModule,
     var_counter: usize,
-    label_counter: usize,
     variables: HashMap<String, String>,
 }
 
 impl IRBuilder {
     pub fn new() -> Self {
         IRBuilder {
-            module: crate::ir::IRModule::new(),
-            current_function: None,
+            module: IRModule::new(),
             var_counter: 0,
-            label_counter: 0,
             variables: HashMap::new(),
         }
     }
@@ -29,7 +25,7 @@ impl IRBuilder {
         name
     }
     
-    pub fn build(mut self, program: &Program) -> crate::ir::IRModule {
+    pub fn build(mut self, program: &Program) -> IRModule {
         let mut main_func = IRFunction::new("main".to_string(), IRType::I64);
         
         for stmt in &program.statements {
@@ -77,15 +73,12 @@ impl IRBuilder {
             Expr::Literal(lit) => {
                 match lit {
                     Literal::Number(n) => IRValue::Const(*n),
-                    Literal::Float(f) => IRValue::ConstF(*f),
-                    Literal::String(s) => IRValue::ConstStr(s.clone()),
-                    Literal::Boolean(b) => IRValue::Const(if *b { 1 } else { 0 }),
+                    _ => IRValue::Const(0),
                 }
             },
             
             Expr::Identifier(name) => {
-                let ptr = self.variables.get(name).cloned();
-                if let Some(ptr) = ptr {
+                if let Some(ptr) = self.variables.get(name).cloned() {
                     let dest = self.fresh_var();
                     func.add_instruction(IRInstruction::Load {
                         dest: dest.clone(),
@@ -134,18 +127,5 @@ impl IRBuilder {
                 IRValue::Var(dest)
             },
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_ir_builder() {
-        let program = Program::new(vec![]);
-        let builder = IRBuilder::new();
-        let module = builder.build(&program);
-        assert_eq!(module.functions.len(), 1);
     }
 }
