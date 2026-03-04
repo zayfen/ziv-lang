@@ -86,23 +86,31 @@ impl ARM64Generator {
         output.push_str(&format!("_{}:\n", func.name));
         output.push_str("    stp x29, x30, [sp, #-16]!\n");
         output.push_str("    mov x29, sp\n");
-        output.push_str("    sub sp, sp, #32\n\n");
 
-        let mut param_count = 0;
         let arg_regs = ["x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7"];
+
+        for instr in &func.instructions {
+            if let IRInstruction::Alloc { dest, .. } = instr {
+                self.alloc_stack(dest.clone());
+            }
+        }
+
+        let stack_space = (self.stack_size + 31) & !31;
+        if stack_space > 0 {
+            output.push_str(&format!("    sub sp, sp, #{}\n\n", stack_space));
+        }
 
         for instr in &func.instructions {
             if let IRInstruction::Alloc { dest, .. } = instr {
                 if dest.starts_with("arg") {
                     if let Ok(num) = dest[3..].parse::<usize>() {
                         if num < arg_regs.len() {
-                            self.alloc_stack(dest.clone());
-                            output.push_str(&format!(
-                                "    str {}, [x29, #-{}]\n",
-                                arg_regs[num],
-                                16 + num * 8
-                            ));
-                            param_count += 1;
+                            if let Some(offset) = self.get_offset(&dest) {
+                                output.push_str(&format!(
+                                    "    str {}, [x29, #-{}]\n",
+                                    arg_regs[num], offset
+                                ));
+                            }
                             continue;
                         }
                     }
