@@ -1,8 +1,8 @@
 //! Code generation for LightLang
 
 pub mod arm64;
+pub mod cranelift;
 pub mod llvm_text;
-pub mod x86_64;
 pub mod x86_64;
 
 use crate::ir::IRModule;

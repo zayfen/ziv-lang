@@ -2,6 +2,7 @@
 
 use crate::codegen::ARM64Generator;
 use crate::codegen::CodeGenerator;
+use crate::codegen::CraneliftGenerator;
 use crate::codegen::X86_64Generator;
 use crate::ir::IRBuilder;
 use crate::lexer::Lexer;
@@ -13,6 +14,7 @@ use std::process::Command;
 pub enum Target {
     X86_64,
     ARM64,
+    Cranelift,
 }
 
 pub struct Compiler {
@@ -26,7 +28,7 @@ impl Compiler {
         Compiler {
             output_name: "a.out".to_string(),
             keep_asm: false,
-            target: Target::ARM64, // Default to ARM64 for macOS
+            target: Target::Cranelift, // Default to Cranelift for better code quality
         }
     }
 
@@ -76,40 +78,86 @@ impl Compiler {
 
         // Step 5: Code Generation
         println!("\nStep 5: Code Generation");
-        let asm = match self.target {
+
+        let obj_file = format!("{}.o", self.output_name);
+
+        match self.target {
+            Target::Cranelift => {
+                let gen = CraneliftGenerator::new()
+                    .map_err(|e| format!("Failed to create Cranelift generator: {}", e))?;
+
+                let obj_bytes = gen
+                    .compile_to_object(&module)
+                    .map_err(|e| format!("Code generation error: {}", e))?;
+
+                fs::write(&obj_file, &obj_bytes)
+                    .map_err(|e| format!("Failed to write object file: {}", e))?;
+
+                println!("  ✓ Generated {} bytes of object code", obj_bytes.len());
+            }
+
             Target::X86_64 => {
                 let mut gen = X86_64Generator::new();
-                gen.generate(&module)
-                    .map_err(|e| format!("Code generation error: {}", e))?
+                let asm = gen
+                    .generate(&module)
+                    .map_err(|e| format!("Code generation error: {}", e))?;
+
+                let asm_file = format!("{}.s", self.output_name);
+                fs::write(&asm_file, &asm)
+                    .map_err(|e| format!("Failed to write assembly: {}", e))?;
+
+                println!("  ✓ Generated {} bytes of assembly", asm.len());
+
+                let status = Command::new("as")
+                    .arg("-o")
+                    .arg(&obj_file)
+                    .arg(&asm_file)
+                    .status()
+                    .map_err(|e| format!("Failed to run assembler: {}", e))?;
+
+                if !status.success() {
+                    return Err("Assembly failed".to_string());
+                }
+                println!("  ✓ Assembled to {}", obj_file);
+
+                if !self.keep_asm {
+                    fs::remove_file(&asm_file).ok();
+                }
             }
+
             Target::ARM64 => {
                 let mut gen = ARM64Generator::new();
-                gen.generate(&module)
-                    .map_err(|e| format!("Code generation error: {}", e))?
+                let asm = gen
+                    .generate(&module)
+                    .map_err(|e| format!("Code generation error: {}", e))?;
+
+                let asm_file = format!("{}.s", self.output_name);
+                fs::write(&asm_file, &asm)
+                    .map_err(|e| format!("Failed to write assembly: {}", e))?;
+
+                println!("  ✓ Generated {} bytes of assembly", asm.len());
+
+                let status = Command::new("as")
+                    .arg("-o")
+                    .arg(&obj_file)
+                    .arg(&asm_file)
+                    .status()
+                    .map_err(|e| format!("Failed to run assembler: {}", e))?;
+
+                if !status.success() {
+                    return Err("Assembly failed".to_string());
+                }
+                println!("  ✓ Assembled to {}", obj_file);
+
+                if !self.keep_asm {
+                    fs::remove_file(&asm_file).ok();
+                }
             }
-        };
-        println!("  ✓ Generated {} bytes of assembly", asm.len());
-
-        // Step 6: Write assembly file
-        let asm_file = format!("{}.s", self.output_name);
-        fs::write(&asm_file, asm).map_err(|e| format!("Failed to write assembly: {}", e))?;
-        println!("  ✓ Wrote assembly to {}", asm_file);
-
-        // Step 7: Assemble to object file
-        let obj_file = format!("{}.o", self.output_name);
-        let status = Command::new("as")
-            .arg("-o")
-            .arg(&obj_file)
-            .arg(&asm_file)
-            .status()
-            .map_err(|e| format!("Failed to run assembler: {}", e))?;
-
-        if !status.success() {
-            return Err("Assembly failed".to_string());
         }
-        println!("  ✓ Assembled to {}", obj_file);
 
-        // Step 8: Link to executable
+        println!("  ✓ Object file written to {}", obj_file);
+
+        // Step 6: Link to executable
         let status = Command::new("clang")
             .arg("-o")
             .arg(&self.output_name)
@@ -124,7 +172,6 @@ impl Compiler {
 
         // Cleanup
         if !self.keep_asm {
-            fs::remove_file(&asm_file).ok();
             fs::remove_file(&obj_file).ok();
             println!("  ✓ Cleaned up temporary files");
         }
