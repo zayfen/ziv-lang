@@ -94,6 +94,74 @@ impl Compiler {
                     .map_err(|e| format!("Failed to write object file: {}", e))?;
 
                 println!("  ✓ Generated {} bytes of object code", obj_bytes.len());
+
+                // Detect architecture and generate appropriate start helper
+                // On macOS, the entry point is _main, so we create a wrapper
+                // that calls our __user_main and exits
+                #[cfg(target_arch = "aarch64")]
+                let start_asm = r#"
+.text
+.globl _main
+_main:
+    stp x29, x30, [sp, #-16]!
+    bl __user_main
+    mov x0, x0
+    mov x16, #1        // exit syscall
+    svc #0
+"#;
+                #[cfg(target_arch = "x86_64")]
+                let start_asm = r#"
+.text
+.globl _main
+_main:
+    call __user_main
+    movq %rax, %rdi
+    movq $0x2000001, %rax  // exit syscall on macOS
+    syscall
+"#;
+
+                let start_asm_file = format!("{}_start.s", self.output_name);
+                fs::write(&start_asm_file, start_asm)
+                    .map_err(|e| format!("Failed to write start assembly: {}", e))?;
+
+                let start_obj_file = format!("{}_start.o", self.output_name);
+                let status = Command::new("as")
+                    .arg("-o")
+                    .arg(&start_obj_file)
+                    .arg(&start_asm_file)
+                    .status()
+                    .map_err(|e| format!("Failed to run assembler: {}", e))?;
+
+                if !status.success() {
+                    return Err("Assembly of start helper failed".to_string());
+                }
+
+                // Link with both object files
+                let status = Command::new("clang")
+                    .arg("-o")
+                    .arg(&self.output_name)
+                    .arg(&obj_file)
+                    .arg(&start_obj_file)
+                    .status()
+                    .map_err(|e| format!("Failed to run linker: {}", e))?;
+
+                if !status.success() {
+                    return Err("Linking failed".to_string());
+                }
+                println!("  ✓ Linked to executable {}", self.output_name);
+
+                // Cleanup
+                if !self.keep_asm {
+                    fs::remove_file(&start_asm_file).ok();
+                    fs::remove_file(&start_obj_file).ok();
+                    fs::remove_file(&obj_file).ok();
+                    println!("  ✓ Cleaned up temporary files");
+                }
+
+                println!("\n✅ Compilation successful!");
+                println!("   Run with: ./{}", self.output_name);
+
+                return Ok(());
             }
 
             Target::X86_64 => {

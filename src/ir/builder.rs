@@ -10,6 +10,8 @@ pub struct IRBuilder {
     label_counter: usize,
     variables: HashMap<String, String>,
     last_expr_value: Option<IRValue>,
+    // Track if current block has a terminator (return/branch)
+    current_block_terminated: bool,
 }
 
 impl IRBuilder {
@@ -20,6 +22,7 @@ impl IRBuilder {
             label_counter: 0,
             variables: HashMap::new(),
             last_expr_value: None,
+            current_block_terminated: false,
         }
     }
 
@@ -35,6 +38,37 @@ impl IRBuilder {
         name
     }
 
+    fn add_instr(&mut self, func: &mut IRFunction, instr: IRInstruction) {
+        // Label always starts a new block, even if previous was terminated
+        if let IRInstruction::Label(label_name) = &instr {
+            // If previous block wasn't terminated, add a jump to this label
+            // This handles fall-through between basic blocks
+            if !self.current_block_terminated {
+                func.add_instruction(IRInstruction::Jump(label_name.clone()));
+            }
+            self.current_block_terminated = false;
+            func.add_instruction(instr);
+            return;
+        }
+
+        // Don't add other instructions if current block is already terminated
+        if self.current_block_terminated {
+            return;
+        }
+
+        // Check if this instruction terminates the block
+        match &instr {
+            IRInstruction::Ret { .. }
+            | IRInstruction::Jump(_)
+            | IRInstruction::CondBranch { .. } => {
+                self.current_block_terminated = true;
+            }
+            _ => {}
+        }
+
+        func.add_instruction(instr);
+    }
+
     pub fn build(mut self, program: &Program) -> IRModule {
         // First pass: collect all function definitions
         for stmt in &program.statements {
@@ -42,11 +76,19 @@ impl IRBuilder {
                 name, params, body, ..
             } = stmt
             {
+                // Reset state for each function
+                self.current_block_terminated = false;
+                self.var_counter = 0;
+                self.label_counter = 0;
+                self.variables.clear();
+
                 let mut func = IRFunction::new(name.clone(), IRType::I64);
 
                 for (i, param) in params.iter().enumerate() {
                     let ptr = format!("arg{}", i);
-                    func.add_instruction(IRInstruction::Alloc {
+                    // Add parameter to function signature
+                    func.params.push((ptr.clone(), IRType::I64));
+                    self.add_instr(&mut func, IRInstruction::Alloc {
                         dest: ptr.clone(),
                         ty: IRType::I64,
                     });
@@ -59,7 +101,7 @@ impl IRBuilder {
                 }
 
                 // Add implicit return if not present
-                func.add_instruction(IRInstruction::Ret {
+                self.add_instr(&mut func, IRInstruction::Ret {
                     ty: IRType::I64,
                     value: Some(IRValue::Const(0)),
                 });
@@ -69,7 +111,12 @@ impl IRBuilder {
         }
 
         // Second pass: build main function with non-function statements
-        let mut main_func = IRFunction::new("main".to_string(), IRType::I64);
+        self.current_block_terminated = false;
+        self.var_counter = 0;
+        self.variables.clear();
+
+        // Use _user_main to avoid conflict with C runtime's main
+        let mut main_func = IRFunction::new("_user_main".to_string(), IRType::I64);
 
         for stmt in &program.statements {
             match stmt {
@@ -84,7 +131,7 @@ impl IRBuilder {
             Some(IRValue::Const(0))
         };
 
-        main_func.add_instruction(IRInstruction::Ret {
+        self.add_instr(&mut main_func, IRInstruction::Ret {
             ty: IRType::I64,
             value: ret_value,
         });
@@ -102,14 +149,14 @@ impl IRBuilder {
 
             Stmt::VariableDecl { name, init, .. } => {
                 let ptr = self.fresh_var();
-                func.add_instruction(IRInstruction::Alloc {
+                self.add_instr(func, IRInstruction::Alloc {
                     dest: ptr.clone(),
                     ty: IRType::I64,
                 });
 
                 if let Some(init_expr) = init {
                     let value = self.build_expr(init_expr, func);
-                    func.add_instruction(IRInstruction::Store {
+                    self.add_instr(func, IRInstruction::Store {
                         dest: ptr.clone(),
                         ty: IRType::I64,
                         value,
@@ -123,7 +170,7 @@ impl IRBuilder {
             Stmt::Assignment { name, value } => {
                 if let Some(ptr) = self.variables.get(name).cloned() {
                     let val = self.build_expr(value, func);
-                    func.add_instruction(IRInstruction::Store {
+                    self.add_instr(func, IRInstruction::Store {
                         dest: ptr,
                         ty: IRType::I64,
                         value: val,
@@ -139,7 +186,7 @@ impl IRBuilder {
                 } else {
                     None
                 };
-                func.add_instruction(IRInstruction::Ret {
+                self.add_instr(func, IRInstruction::Ret {
                     ty: IRType::I64,
                     value,
                 });
@@ -155,27 +202,37 @@ impl IRBuilder {
                 let else_label = self.fresh_label();
                 let end_label = self.fresh_label();
 
-                func.add_instruction(IRInstruction::CondBranch {
+                self.add_instr(func, IRInstruction::CondBranch {
                     condition: cond_val,
                     true_label: then_label.clone(),
                     false_label: else_label.clone(),
                 });
 
-                func.add_instruction(IRInstruction::Label(then_label));
+                // Then branch
+                self.add_instr(func, IRInstruction::Label(then_label));
+                let then_terminated = self.current_block_terminated;
                 for stmt in then_branch {
                     self.build_stmt(stmt, func);
                 }
-                func.add_instruction(IRInstruction::Jump(end_label.clone()));
+                // Only add jump if block wasn't terminated by return
+                if !self.current_block_terminated {
+                    self.add_instr(func, IRInstruction::Jump(end_label.clone()));
+                }
 
-                func.add_instruction(IRInstruction::Label(else_label));
+                // Else branch
+                self.add_instr(func, IRInstruction::Label(else_label));
                 if let Some(else_stmts) = else_branch {
                     for stmt in else_stmts {
                         self.build_stmt(stmt, func);
                     }
                 }
-                func.add_instruction(IRInstruction::Jump(end_label.clone()));
+                // Only add jump if block wasn't terminated by return
+                if !self.current_block_terminated {
+                    self.add_instr(func, IRInstruction::Jump(end_label.clone()));
+                }
 
-                func.add_instruction(IRInstruction::Label(end_label));
+                // End label
+                self.add_instr(func, IRInstruction::Label(end_label));
             }
 
             Stmt::While { condition, body } => {
@@ -183,21 +240,24 @@ impl IRBuilder {
                 let body_label = self.fresh_label();
                 let end_label = self.fresh_label();
 
-                func.add_instruction(IRInstruction::Label(start_label.clone()));
+                self.add_instr(func, IRInstruction::Label(start_label.clone()));
                 let cond_val = self.build_expr(condition, func);
-                func.add_instruction(IRInstruction::CondBranch {
+                self.add_instr(func, IRInstruction::CondBranch {
                     condition: cond_val,
                     true_label: body_label.clone(),
                     false_label: end_label.clone(),
                 });
 
-                func.add_instruction(IRInstruction::Label(body_label));
+                self.add_instr(func, IRInstruction::Label(body_label));
                 for stmt in body {
                     self.build_stmt(stmt, func);
                 }
-                func.add_instruction(IRInstruction::Jump(start_label));
+                // Jump back to start if not terminated
+                if !self.current_block_terminated {
+                    self.add_instr(func, IRInstruction::Jump(start_label));
+                }
 
-                func.add_instruction(IRInstruction::Label(end_label));
+                self.add_instr(func, IRInstruction::Label(end_label));
             }
 
             Stmt::Block(stmts) => {
@@ -218,7 +278,7 @@ impl IRBuilder {
             Expr::Identifier(name) => {
                 if let Some(ptr) = self.variables.get(name).cloned() {
                     let dest = self.fresh_var();
-                    func.add_instruction(IRInstruction::Load {
+                    self.add_instr(func, IRInstruction::Load {
                         dest: dest.clone(),
                         ty: IRType::I64,
                         ptr: ptr,
@@ -303,7 +363,7 @@ impl IRBuilder {
                     },
                 };
 
-                func.add_instruction(instr);
+                self.add_instr(func, instr);
                 IRValue::Var(dest)
             }
 
@@ -314,7 +374,7 @@ impl IRBuilder {
                 }
 
                 let dest = self.fresh_var();
-                func.add_instruction(IRInstruction::Call {
+                self.add_instr(func, IRInstruction::Call {
                     result: Some(dest.clone()),
                     function: callee.clone(),
                     args: arg_values,

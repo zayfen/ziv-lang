@@ -283,9 +283,99 @@ impl X86_64Generator {
                 }
             }
 
-            IRInstruction::Cmp { .. } => String::new(),
+            IRInstruction::Cmp { dest, op, lhs, rhs } => {
+                self.alloc_stack(dest.clone());
+                if let Some(dest_offset) = self.get_offset(dest) {
+                    let mut code = String::new();
 
-            IRInstruction::Call { .. } => String::new(),
+                    // Load lhs into rax
+                    match lhs {
+                        IRValue::Const(n) => {
+                            code.push_str(&format!("    movq ${}, %rax\n", n));
+                        }
+                        IRValue::Var(name) => {
+                            if let Some(offset) = self.get_offset(name) {
+                                code.push_str(&format!("    movq -{}(%rbp), %rax\n", offset));
+                            }
+                        }
+                    }
+
+                    // Compare with rhs
+                    match rhs {
+                        IRValue::Const(n) => {
+                            code.push_str(&format!("    cmpq ${}, %rax\n", n));
+                        }
+                        IRValue::Var(name) => {
+                            if let Some(offset) = self.get_offset(name) {
+                                code.push_str(&format!("    cmpq -{}(%rbp), %rax\n", offset));
+                            }
+                        }
+                    }
+
+                    // Set result based on comparison operator
+                    // Use setCC instruction to set low byte of result register
+                    code.push_str("    xorq %rcx, %rcx\n"); // Clear rcx
+                    match op {
+                        crate::ir::CmpOp::Eq => code.push_str("    sete %cl\n"),
+                        crate::ir::CmpOp::Ne => code.push_str("    setne %cl\n"),
+                        crate::ir::CmpOp::Lt => code.push_str("    setl %cl\n"),
+                        crate::ir::CmpOp::Le => code.push_str("    setle %cl\n"),
+                        crate::ir::CmpOp::Gt => code.push_str("    setg %cl\n"),
+                        crate::ir::CmpOp::Ge => code.push_str("    setge %cl\n"),
+                    }
+
+                    // Store result (0 or 1)
+                    code.push_str(&format!("    movq %rcx, -{}(%rbp)\n", dest_offset));
+                    code
+                } else {
+                    String::new()
+                }
+            }
+
+            IRInstruction::Call { result, function, args } => {
+                let mut code = String::new();
+
+                // x86-64 calling convention: args in rdi, rsi, rdx, rcx, r8, r9
+                let arg_regs = ["%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"];
+
+                // Push arguments in reverse order for stack args, or use registers for first 6
+                // For simplicity, we use registers for up to 6 args
+                for (i, arg) in args.iter().enumerate() {
+                    if i < 6 {
+                        match arg {
+                            IRValue::Const(n) => {
+                                code.push_str(&format!("    movq ${}, {}\n", n, arg_regs[i]));
+                            }
+                            IRValue::Var(name) => {
+                                if let Some(offset) = self.get_offset(name) {
+                                    code.push_str(&format!("    movq -{}(%rbp), {}\n", offset, arg_regs[i]));
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Align stack to 16 bytes before call (System V ABI requirement)
+                code.push_str("    pushq %rax\n"); // Save rax
+                code.push_str("    pushq %rax\n"); // Align to 16 bytes
+
+                // Call the function
+                code.push_str(&format!("    call {}\n", function));
+
+                // Restore stack
+                code.push_str("    popq %rcx\n"); // Remove alignment
+                code.push_str("    popq %rcx\n"); // Restore original rax value (discarded)
+
+                // Store result if needed
+                if let Some(dest) = result {
+                    self.alloc_stack(dest.clone());
+                    if let Some(dest_offset) = self.get_offset(dest) {
+                        code.push_str(&format!("    movq %rax, -{}(%rbp)\n", dest_offset));
+                    }
+                }
+
+                code
+            }
 
             IRInstruction::Label(name) => format!("{}:\n", name),
 
