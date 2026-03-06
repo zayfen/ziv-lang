@@ -1,4 +1,4 @@
-//! Array functions for Lumi standard library
+//! Array functions for Ziv standard library
 
 use super::{BuiltinFunction, BuiltinParam, Stdlib};
 

@@ -1,4 +1,4 @@
-//! Math functions for Lumi standard library
+//! Math functions for Ziv standard library
 
 use super::{BuiltinFunction, BuiltinParam, Stdlib};
 

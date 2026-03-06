@@ -1,6 +1,6 @@
-//! Standard Library for Lumi
+//! Standard Library for Ziv
 //!
-//! This module provides built-in functions and utilities for the Lumi programming language.
+//! This module provides built-in functions and utilities for the Ziv programming language.
 
 pub mod io;
 pub mod math;

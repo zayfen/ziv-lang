@@ -1,8 +1,8 @@
-// Lumi - 字符串函数示例
+// Ziv - 字符串函数示例
 // 演示标准库中的字符串处理函数
 
 // 字符串长度
-let s = "Hello, Lumi!";
+let s = "Hello, Ziv!";
 println("字符串长度:");
 println(strlen(s));
 

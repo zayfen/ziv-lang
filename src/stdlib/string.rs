@@ -1,4 +1,4 @@
-//! String functions for Lumi standard library
+//! String functions for Ziv standard library
 
 use super::{BuiltinFunction, BuiltinParam, Stdlib};
 

@@ -1,4 +1,4 @@
-//! IO functions for Lumi standard library
+//! IO functions for Ziv standard library
 
 use super::{BuiltinFunction, BuiltinParam, Stdlib};
 
