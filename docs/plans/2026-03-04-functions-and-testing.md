@@ -20,7 +20,7 @@
 
 ```rust
 // tests/lexer_tests.rs
-use lightlang::lexer::Lexer;
+use ziv::lexer::Lexer;
 
 #[test]
 fn test_let_keyword() {
@@ -49,7 +49,7 @@ Expected: FAIL - test file is empty
 
 ```rust
 // tests/lexer_tests.rs
-use lightlang::lexer::{Lexer, TokenKind};
+use ziv::lexer::{Lexer, TokenKind};
 ```
 
 **Step 4: Run tests to verify they pass**
@@ -144,8 +144,8 @@ git commit -m "test: add comprehensive lexer operator and function token tests"
 
 ```rust
 // tests/parser_tests.rs
-use lightlang::parser::Parser;
-use lightlang::parser::ast::{Stmt, Expr};
+use ziv::parser::Parser;
+use ziv::parser::ast::{Stmt, Expr};
 
 #[test]
 fn test_parse_let_statement() {
@@ -172,7 +172,7 @@ Expected: FAIL - test file is empty
 **Step 3: Add necessary imports**
 
 ```rust
-use lightlang::parser::{Parser, ast::{Stmt, Expr}};
+use ziv::parser::{Parser, ast::{Stmt, Expr}};
 ```
 
 **Step 4: Run test to verify it passes**
@@ -397,8 +397,8 @@ git commit -m "feat: add function call expression parsing"
 
 ```rust
 // tests/integration_tests.rs (create if needed)
-use lightlang::parser::Parser;
-use lightlang::ir::IRBuilder;
+use ziv::parser::Parser;
+use ziv::ir::IRBuilder;
 
 #[test]
 fn test_function_call_ir() {

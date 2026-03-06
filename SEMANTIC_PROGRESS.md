@@ -95,6 +95,6 @@ CodeGen:   ░░░░░░░░░░░░░░░░░░░░   0%
 
 ---
 
-**GitHub**: https://github.com/zayfen/lightlang  
-**本地路径**: `~/Github/lightscript-lang`  
+**GitHub**: https://github.com/zayfen/ziv  
+**本地路径**: `~/Github/ziv-lang`  
 **下一目标**: 实现 IR 和代码生成 🚀

@@ -117,8 +117,8 @@
 
 ## 🔗 快速链接
 
-- **GitHub**: https://github.com/zayfen/lightlang
-- **本地路径**: `~/Github/lightscript-lang`
+- **GitHub**: https://github.com/zayfen/ziv
+- **本地路径**: `~/Github/ziv-lang`
 - **编译**: `cargo build`
 - **测试**: `cargo test`
 - **编译器**: `./target/debug/llc`

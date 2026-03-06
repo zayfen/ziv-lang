@@ -43,20 +43,20 @@
 ### 3. 测试验证
 
 ✅ **测试 1**: 基本算术
-```lightlang
+```ziv
 let a = 10;
 let b = 20;
 let c = a + b;  // c = 30 ✅
 ```
 
 ✅ **测试 2**: 复杂表达式
-```lightlang
+```ziv
 let d = c * 2;  // d = 60 ✅
 let e = d - 5;  // e = 55 ✅
 ```
 
 ✅ **测试 3**: Fibonacci 计算
-```lightlang
+```ziv
 // fib(10) = 55 ✅
 let fib10 = fib8 + fib9;
 ```
@@ -163,8 +163,8 @@ git checkout 7d62ba4
 
 ## 🔗 快速链接
 
-- **GitHub**: https://github.com/zayfen/lightlang
-- **本地**: `~/Github/lightscript-lang`
+- **GitHub**: https://github.com/zayfen/ziv
+- **本地**: `~/Github/ziv-lang`
 - **编译器**: `./target/debug/llc`
 - **示例**: `examples/*.ll`
 

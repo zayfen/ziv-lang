@@ -1,4 +1,4 @@
-use lightlang::lexer::{Lexer, Token};
+use ziv::lexer::{Lexer, Token};
 
 #[test]
 fn test_let_keyword() {

@@ -20,7 +20,7 @@
 ## 🎯 测试验证
 
 ### 测试程序 1: 基本算术运算
-```lightlang
+```ziv
 let a = 10;
 let b = 20;
 let c = a + b;    // c = 30
@@ -42,7 +42,7 @@ subq $5, %rax           # e = 55
 ---
 
 ### 测试程序 2: Fibonacci 计算
-```lightlang
+```ziv
 let a = 0;
 let b = 1;
 let fib2 = a + b;      // fib(2) = 1
@@ -171,8 +171,8 @@ cat test.s  # 查看生成的汇编
 
 ## 🔗 快速链接
 
-- **GitHub**: https://github.com/zayfen/lightlang
-- **本地**: `~/Github/lightscript-lang`
+- **GitHub**: https://github.com/zayfen/ziv
+- **本地**: `~/Github/ziv-lang`
 - **编译器**: `./target/debug/llc`
 - **示例**: `examples/*.ll`
 

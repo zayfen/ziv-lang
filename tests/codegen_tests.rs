@@ -1,5 +1,5 @@
-use lightlang::codegen::ARM64Generator;
-use lightlang::ir::IRModule;
+use ziv::codegen::ARM64Generator;
+use ziv::ir::IRModule;
 
 #[test]
 fn test_arm64_generator_creation() {

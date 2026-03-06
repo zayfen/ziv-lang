@@ -29,7 +29,7 @@ impl CraneliftGenerator {
             .finish(flags)
             .map_err(|e| format!("Failed to create ISA: {}", e))?;
 
-        let builder = ObjectBuilder::new(isa, "lightlang", default_libcall_names())
+        let builder = ObjectBuilder::new(isa, "ziv", default_libcall_names())
             .map_err(|e| format!("Failed to create object builder: {}", e))?;
 
         Ok(CraneliftGenerator {

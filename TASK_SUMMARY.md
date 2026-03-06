@@ -104,7 +104,7 @@ examples/stdlib/
 ### 编译项目
 
 ```bash
-cd ~/Github/lightscript-lang
+cd ~/Github/ziv-lang
 cargo build --release
 ```
 

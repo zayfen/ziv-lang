@@ -84,7 +84,7 @@
 ## 🎯 目标示例
 
 ### 目标: Fibonacci 函数
-```lightlang
+```ziv
 function fib(n) {
     if (n <= 1) {
         return n;

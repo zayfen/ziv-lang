@@ -23,8 +23,8 @@
 - CI/CD 硐保
 - 项目架构完善
 
-- Git 仓库: https://github.com/zayfen/lightlang
-- 本地路径: `~/Github/lightscript-lang`
+- Git 仓库: https://github.com/zayfen/ziv
+- 本地路径: `~/Github/ziv-lang`
 - 总提交次数: 6 次
     - 最新提交 (60ffe9a)
 - 编译状态: ✅ 成功（已解决 Rust 1.80 的1 的依赖兼容性问题）
@@ -151,15 +151,15 @@ CI/CD 疏保
 4. **实现 ELF 链接器**（需要先安装 LLVM 或者可以继续开发）
 5. **生成第一个 ELF 可执行文件** 🚀
 
-    - 文件扩展名改为 `lightlang` 以避免混淆
+    - 文件扩展名改为 `ziv` 以避免混淆
     - 更新 `STATUS.md` 和 `PROGRESS.md`
     - 皂任务清单更清晰
     - 使用友好的名称（如"LightLang"）
-    - 本地路径明确为 `~/Github/lightscript-lang`
+    - 本地路径明确为 `~/Github/ziv-lang`
 - - Git 提交次数保持为 6 次
-    - 项目 GitHub: https://github.com/zayfen/lightlang
+    - 项目 GitHub: https://github.com/zayfen/ziv
 - 裁剪命令 `llc --help` 和版本：
-    - 本地测试命令：`cd ~/Github/lightscript-lang && cargo test`
+    - 本地测试命令：`cd ~/Github/ziv-lang && cargo test`
     - 生成覆盖率报告：`cargo tarpaulin --out Html`
     - 下载测试历史：`cat PROGRESS.md`
     - 1. 查看详细进度：`cat STATUS.md`
@@ -302,8 +302,8 @@ CI/CD 疏保
     - 回复问题时简短清晰
     - 专注于开发进度而非琐事
     - 炫编码后的开发节奏
-    - 使用友好的名称（如 "lightlang"）
-    - 本地路径明确为 `~/Github/lightscript-lang`
+    - 使用友好的名称（如 "ziv"）
+    - 本地路径明确为 `~/Github/ziv-lang`
     - 裁剪命令 `llc --help` 和版本：
     - 毘好的编译选项
     - 优化技巧

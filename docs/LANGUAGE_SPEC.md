@@ -8,7 +8,7 @@ LightLang 是一门**现代系统级编程语言**，核心理念：
 
 ### 为什么选择 LightLang？
 
-```lightlang
+```ziv
 // 像 JavaScript 一样优雅
 let greet = (name) => `Hello, ${name}!`;
 
@@ -46,7 +46,7 @@ let first = data[0];  // 自动内存管理
 
 ### 关键字
 
-```lightlang
+```ziv
 // 变量声明
 let const
 
@@ -80,7 +80,7 @@ identifier = [a-zA-Z_$][a-zA-Z0-9_$]*
 ```
 
 **示例**：
-```lightlang
+```ziv
 foo
 _bar
 $element
@@ -91,7 +91,7 @@ myFunction
 ### 字面量
 
 #### 数字
-```lightlang
+```ziv
 42              // 整数（默认 32 位）
 127i8           // 8 位整数
 255u8           // 8 位无符号
@@ -105,7 +105,7 @@ myFunction
 ```
 
 #### 字符串
-```lightlang
+```ziv
 "hello"                     // 双引号字符串
 'world'                     // 单引号字符串（同双引号）
 `hello ${name}`             // 模板字符串
@@ -114,7 +114,7 @@ myFunction
 ```
 
 #### 布尔与空值
-```lightlang
+```ziv
 true
 false
 null          // 空值
@@ -123,7 +123,7 @@ undefined     // 未定义
 
 ### 注释
 
-```lightlang
+```ziv
 // 单行注释
 
 /*
@@ -156,7 +156,7 @@ undefined     // 未定义
 
 ### 类型推断
 
-```lightlang
+```ziv
 // 自动推断
 let x = 42;           // int
 let y = 3.14;         // float
@@ -171,7 +171,7 @@ let arr: float[] = [1.0, 2.0, 3.0];
 ### 复合类型
 
 #### 数组
-```lightlang
+```ziv
 // 固定大小
 let arr: int[5] = [1, 2, 3, 4, 5];
 
@@ -184,7 +184,7 @@ let matrix: float[][] = [[1.0, 2.0], [3.0, 4.0]];
 ```
 
 #### 对象
-```lightlang
+```ziv
 // 对象字面量
 let person = {
     name: "Alice",
@@ -204,13 +204,13 @@ let p: Person = {
 ```
 
 #### 元组
-```lightlang
+```ziv
 let tuple: (int, string, float) = (1, "hello", 3.14);
 let (x, y, z) = tuple;  // 解构
 ```
 
 #### 枚举
-```lightlang
+```ziv
 enum Status {
     Pending,
     Active,
@@ -229,7 +229,7 @@ let opt = Option::Some(42);
 ```
 
 #### 联合类型
-```lightlang
+```ziv
 type StringOrNumber = string | int;
 
 let value: StringOrNumber = "hello";
@@ -237,7 +237,7 @@ value = 42;  // OK
 ```
 
 #### 可选类型
-```lightlang
+```ziv
 let name: string? = null;  // 可以是 string 或 null
 
 // 等价于
@@ -246,7 +246,7 @@ let name: string | null = null;
 
 ### 泛型
 
-```lightlang
+```ziv
 // 泛型函数
 function identity<T>(x: T): T {
     return x;
@@ -277,7 +277,7 @@ let container = new Container(42);
 
 ### 变量声明
 
-```lightlang
+```ziv
 // let: 可变变量
 let x = 10;
 x = 20;  // OK
@@ -289,7 +289,7 @@ const PI = 3.14159;
 
 ### 作用域
 
-```lightlang
+```ziv
 // 块级作用域
 {
     let x = 10;
@@ -306,7 +306,7 @@ function example() {
 
 ### 变量提升
 
-```lightlang
+```ziv
 // ❌ 不支持变量提升（与 JavaScript 不同）
 console.log(x);  // 错误：x 未定义
 let x = 10;
@@ -318,7 +318,7 @@ let x = 10;
 
 ### 算术运算
 
-```lightlang
+```ziv
 1 + 2       // 3
 3 - 1       // 2
 2 * 3       // 6
@@ -329,7 +329,7 @@ let x = 10;
 
 ### 比较运算
 
-```lightlang
+```ziv
 1 == 1      // true（值比较）
 1 != 2      // true
 1 === 1     // true（严格相等）
@@ -342,7 +342,7 @@ let x = 10;
 
 ### 逻辑运算
 
-```lightlang
+```ziv
 true && false   // false
 true || false   // true
 !true           // false
@@ -350,7 +350,7 @@ true || false   // true
 
 ### 位运算
 
-```lightlang
+```ziv
 0b1010 & 0b1100   // 0b1000
 0b1010 | 0b1100   // 0b1110
 0b1010 ^ 0b1100   // 0b0110
@@ -361,7 +361,7 @@ true || false   // true
 
 ### 解构
 
-```lightlang
+```ziv
 // 数组解构
 let [a, b, c] = [1, 2, 3];
 let [first, ...rest] = [1, 2, 3, 4];
@@ -376,7 +376,7 @@ let { x = 0, y = 0 } = point;
 
 ### 展开运算符
 
-```lightlang
+```ziv
 // 数组展开
 let arr1 = [1, 2, 3];
 let arr2 = [...arr1, 4, 5];  // [1, 2, 3, 4, 5]
@@ -388,7 +388,7 @@ let obj2 = { ...obj1, b: 2 };  // { a: 1, b: 2 }
 
 ### 可选链与空值合并
 
-```lightlang
+```ziv
 let city = person?.address?.city;  // 安全访问
 let len = arr?.length ?? 0;        // 空值合并
 ```
@@ -399,7 +399,7 @@ let len = arr?.length ?? 0;        // 空值合并
 
 ### 条件语句
 
-```lightlang
+```ziv
 // if-else
 if (x > 0) {
     console.log("positive");
@@ -428,7 +428,7 @@ switch (value) {
 
 ### 循环语句
 
-```lightlang
+```ziv
 // while
 let i = 0;
 while (i < 10) {
@@ -454,7 +454,7 @@ for (const key in object) {
 
 ### 跳转语句
 
-```lightlang
+```ziv
 break;          // 跳出循环
 continue;       // 继续下一次循环
 return value;   // 返回
@@ -463,7 +463,7 @@ throw error;    // 抛出异常
 
 ### 异常处理
 
-```lightlang
+```ziv
 try {
     throw new Error("something went wrong");
 } catch (e) {
@@ -479,7 +479,7 @@ try {
 
 ### 函数声明
 
-```lightlang
+```ziv
 // 普通函数
 function add(a: int, b: int): int {
     return a + b;
@@ -496,7 +496,7 @@ const divide = function(a: int, b: int): int {
 
 ### 默认参数
 
-```lightlang
+```ziv
 function greet(name: string, greeting: string = "Hello") {
     console.log(`${greeting}, ${name}!`);
 }
@@ -507,7 +507,7 @@ greet("Bob", "Hi");      // "Hi, Bob!"
 
 ### 剩余参数
 
-```lightlang
+```ziv
 function sum(...numbers: int[]): int {
     return numbers.reduce((a, b) => a + b, 0);
 }
@@ -517,7 +517,7 @@ sum(1, 2, 3, 4, 5);  // 15
 
 ### 高阶函数
 
-```lightlang
+```ziv
 // 函数作为参数
 function map<T, U>(arr: T[], fn: (x: T) => U): U[] {
     let result: U[] = [];
@@ -538,7 +538,7 @@ double(5);  // 10
 
 ### 闭包
 
-```lightlang
+```ziv
 function counter() {
     let count = 0;
     return () => {
@@ -554,7 +554,7 @@ c();  // 2
 
 ### 异步函数
 
-```lightlang
+```ziv
 async function fetchData(url: string): Promise<Response> {
     const response = await fetch(url);
     return response.json();
@@ -570,7 +570,7 @@ let data = await fetchData("https://api.example.com/data");
 
 ### 类定义
 
-```lightlang
+```ziv
 class Person {
     // 属性
     name: string;
@@ -599,7 +599,7 @@ person.greet();  // "Hello, I'm Alice"
 
 ### 继承
 
-```lightlang
+```ziv
 class Student extends Person {
     grade: string;
     
@@ -620,7 +620,7 @@ student.study();
 
 ### 访问修饰符
 
-```lightlang
+```ziv
 class Example {
     public x: int;           // 公有（默认）
     private y: int;          // 私有
@@ -632,7 +632,7 @@ class Example {
 
 ### 接口
 
-```lightlang
+```ziv
 interface Drawable {
     draw(): void;
 }
@@ -652,7 +652,7 @@ class Circle implements Drawable {
 
 LightLang 使用**区域推断（Region Inference）**进行内存管理：
 
-```lightlang
+```ziv
 function example() {
     let arr = [1, 2, 3, 4, 5];  // 在函数作用域分配
     // 使用 arr
@@ -666,7 +666,7 @@ function example() {
 2. **移动语义**：赋值时转移所有权
 3. **引用计数**：共享数据使用引用计数
 
-```lightlang
+```ziv
 let s1 = "hello";
 let s2 = s1;  // s1 移动到 s2
 // console.log(s1);  // ❌ 错误：s1 已失效
@@ -680,7 +680,7 @@ console.log(shared);     // ✅ shared 也有效
 
 ### 手动内存管理（高级）
 
-```lightlang
+```ziv
 // 使用 native 关键字标记手动管理
 native function malloc(size: uint): *void;
 native function free(ptr: *void): void;
@@ -698,7 +698,7 @@ function manualExample() {
 
 ### 系统调用
 
-```lightlang
+```ziv
 import syscall from "std/os";
 
 fn main(): i32 {
@@ -710,7 +710,7 @@ fn main(): i32 {
 
 ### 指针操作
 
-```lightlang
+```ziv
 // 原始指针（需要 unsafe）
 unsafe fn pointerExample() {
     let x: int = 10;
@@ -728,7 +728,7 @@ unsafe fn pointerExample() {
 
 ### 内联汇编
 
-```lightlang
+```ziv
 fn getCPUID(): i32 {
     let eax: i32;
     unsafe {
@@ -758,7 +758,7 @@ Hello, World!
 
 ### 导出
 
-```lightlang
+```ziv
 // math.ll
 export function add(a: int, b: int): int {
     return a + b;
@@ -773,7 +773,7 @@ export class Calculator {
 
 ### 导入
 
-```lightlang
+```ziv
 // 命名导入
 import { add, PI } from "./math.ll";
 
@@ -789,7 +789,7 @@ import { add as addNumbers } from "./math.ll";
 
 ### 动态导入
 
-```lightlang
+```ziv
 let module = await import("./module.ll");
 module.doSomething();
 ```
@@ -800,7 +800,7 @@ module.doSomething();
 
 ### console
 
-```lightlang
+```ziv
 console.log("Hello");
 console.error("Error");
 console.warn("Warning");
@@ -811,7 +811,7 @@ console.timeEnd("timer");
 
 ### Array
 
-```lightlang
+```ziv
 let arr = [1, 2, 3, 4, 5];
 
 arr.push(6);             // 添加元素
@@ -833,7 +833,7 @@ arr.findIndex(x => x > 2);       // 查找索引
 
 ### String
 
-```lightlang
+```ziv
 let s = "  Hello, World!  ";
 
 s.trim();                  // 去除空格
@@ -851,7 +851,7 @@ s.length;                  // 长度
 
 ### Object
 
-```lightlang
+```ziv
 let obj = { a: 1, b: 2, c: 3 };
 
 Object.keys(obj);          // ["a", "b", "c"]
@@ -863,7 +863,7 @@ Object.freeze(obj);        // 冻结
 
 ### Promise
 
-```lightlang
+```ziv
 let promise = new Promise((resolve, reject) => {
     setTimeout(() => {
         resolve("done");
@@ -889,7 +889,7 @@ async function fetch() {
 
 ### Hello World
 
-```lightlang
+```ziv
 import console from "std";
 
 function main(): int {
@@ -900,7 +900,7 @@ function main(): int {
 
 ### 斐波那契
 
-```lightlang
+```ziv
 function fib(n: int): int {
     if (n <= 1) return n;
     return fib(n - 1) + fib(n - 2);
@@ -911,7 +911,7 @@ console.log(fib(10));  // 55
 
 ### 系统调用示例
 
-```lightlang
+```ziv
 import syscall from "std/os";
 
 fn main(): int {
@@ -923,7 +923,7 @@ fn main(): int {
 
 ### 类示例
 
-```lightlang
+```ziv
 class Counter {
     private count: int = 0;
     

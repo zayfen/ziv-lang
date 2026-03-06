@@ -1,4 +1,4 @@
-use lightlang::*;
+use ziv::*;
 
 fn main() {
     println!("=== LightLang Compiler Demo ===\n");

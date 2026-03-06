@@ -103,7 +103,7 @@ Native ELF (未来)
 ## 📝 示例
 
 ### LightLang 源码:
-```lightlang
+```ziv
 let x = 42;
 let y = 10;
 let z = x + y;
@@ -181,7 +181,7 @@ _start:
 
 ---
 
-**GitHub**: https://github.com/zayfen/lightlang  
-**本地路径**: `~/Github/lightscript-lang`  
+**GitHub**: https://github.com/zayfen/ziv  
+**本地路径**: `~/Github/ziv-lang`  
 **下一目标**: 生成第一个 ELF 可执行文件 🚀
 

@@ -16,7 +16,7 @@
 - 简洁优雅 ✅
 
 **修改内容**:
-- ✅ Cargo.toml 项目名: `lightlang` → `ziv`
+- ✅ Cargo.toml 项目名: `ziv` → `ziv`
 - ✅ 库名: `ziv`
 - ✅ 二进制名: `llc` → `ziv`
 

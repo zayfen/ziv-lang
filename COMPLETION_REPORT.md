@@ -4,7 +4,7 @@
 
 **项目名称**: LightLang  
 **定位**: 系统级编程语言（Systems Programming Language）  
-**GitHub**: https://github.com/zayfen/lightlang  
+**GitHub**: https://github.com/zayfen/ziv  
 **创建时间**: 2026-03-03  
 **完成状态**: 核心框架已完成 ✅
 
@@ -292,10 +292,10 @@
 
 ## 🔗 重要链接
 
-- **GitHub 仓库**: https://github.com/zayfen/lightlang
-- **问题追踪**: https://github.com/zayfen/lightlang/issues
-- **Pull Requests**: https://github.com/zayfen/lightlang/pulls
-- **Wiki**: https://github.com/zayfen/lightlang/wiki
+- **GitHub 仓库**: https://github.com/zayfen/ziv
+- **问题追踪**: https://github.com/zayfen/ziv/issues
+- **Pull Requests**: https://github.com/zayfen/ziv/pulls
+- **Wiki**: https://github.com/zayfen/ziv/wiki
 
 ---
 

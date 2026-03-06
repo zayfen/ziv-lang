@@ -1,4 +1,4 @@
-use lightlang::parser::{
+use ziv::parser::{
     ast::{Expr, Stmt},
     Parser,
 };

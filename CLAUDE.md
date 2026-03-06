@@ -125,7 +125,7 @@ Source Code (.ll)
 
 LightLang uses JavaScript-inspired syntax with type annotations:
 
-```lightlang
+```ziv
 // Variable declarations
 let x = 42;
 let y: i64 = 100;

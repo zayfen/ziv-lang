@@ -5,7 +5,7 @@
 ### 1. 项目结构
 
 ```
-lightscript-lang/
+ziv-lang/
 ├── .github/
 │   └── workflows/
 │       └── ci.yml              # CI/CD 配置
@@ -155,9 +155,9 @@ insta = "1.34"              # 快照测试
 
 ## 🔗 链接
 
-- **GitHub**: https://github.com/zayfen/lightscript-lang
-- **文档**: https://lightscript-lang.github.io
-- **在线尝试**: https://lightscript-lang.github.io/playground
+- **GitHub**: https://github.com/zayfen/ziv-lang
+- **文档**: https://ziv-lang.github.io
+- **在线尝试**: https://ziv-lang.github.io/playground
 
 ---
 

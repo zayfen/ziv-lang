@@ -1071,9 +1071,9 @@ git commit -m "feat: integrate Cranelift into compiler driver"
 ```rust
 //! Integration tests for Cranelift code generator
 
-use lightlang::codegen::CraneliftGenerator;
-use lightlang::ir::{IRFunction, IRInstruction, IRModule, IRType, IRValue};
-use lightlang::Compiler;
+use ziv::codegen::CraneliftGenerator;
+use ziv::ir::{IRFunction, IRInstruction, IRModule, IRType, IRValue};
+use ziv::Compiler;
 
 #[test]
 fn test_cranelift_simple_return() {
