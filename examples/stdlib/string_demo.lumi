@@ -1,0 +1,38 @@
+// Lumi - 字符串函数示例
+// 演示标准库中的字符串处理函数
+
+// 字符串长度
+let s = "Hello, Lumi!";
+println("字符串长度:");
+println(strlen(s));
+
+// 字符串连接
+let str1 = "Hello";
+let str2 = "World";
+let combined = concat(str1, str2);
+println("连接后的字符串:");
+println(combined);
+
+// 子字符串
+let text = "Hello, World!";
+let sub = substr(text, 0, 5);
+println("子字符串:");
+println(sub);
+
+// 大小写转换
+println("转大写:");
+println(to_upper(text));
+println("转小写:");
+println(to_lower(text));
+
+// 去除空白
+let padded = "  Hello  ";
+println("去除空白后:");
+println(trim(padded));
+
+// 包含检查
+let sentence = "The quick brown fox";
+let word = "quick";
+if (contains(sentence, word)) {
+    println("找到单词!");
+}

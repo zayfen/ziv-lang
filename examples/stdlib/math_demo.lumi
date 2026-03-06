@@ -1,0 +1,32 @@
+// Lumi - 数学函数示例
+// 演示标准库中的数学函数
+
+// 绝对值
+let x = -10;
+println("abs(-10) = ");
+println(abs(x));
+
+// 最小值和最大值
+let a = 5;
+let b = 10;
+println("min(5, 10) = ");
+println(min(a, b));
+println("max(5, 10) = ");
+println(max(a, b));
+
+// 幂运算
+println("pow(2, 3) = ");
+println(pow(2, 3));
+
+// 平方根
+println("sqrt(16) = ");
+println(sqrt(16));
+
+// 取整函数
+let num = 3.7;
+println("floor(3.7) = ");
+println(floor(num));
+println("ceil(3.7) = ");
+println(ceil(num));
+println("round(3.7) = ");
+println(round(num));

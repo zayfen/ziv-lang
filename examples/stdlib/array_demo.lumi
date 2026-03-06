@@ -1,0 +1,28 @@
+// Lumi - 数组函数示例
+// 演示标准库中的数组操作函数
+
+// 创建数组
+let arr = [1, 2, 3, 4, 5];
+
+// 数组长度
+println("数组长度:");
+println(arrlen(arr));
+
+// 添加元素
+let newArr = push(arr, 6);
+println("添加元素后的长度:");
+println(arrlen(newArr));
+
+// 获取元素
+let firstElem = first(arr);
+println("第一个元素:");
+println(firstElem);
+
+let lastElem = last(arr);
+println("最后一个元素:");
+println(lastElem);
+
+// 反转数组
+let reversed = reverse(arr);
+println("反转后的数组第一个元素:");
+println(first(reversed));
