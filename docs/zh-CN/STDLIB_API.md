@@ -8,7 +8,7 @@
 - 本文档由当前 `ziv-stdlib` 注册表导出。
 - 表中“签名”是标准库元信息签名（用于符号注册与语义检查）。
 - 当前默认运行时可执行全部 117 个函数。
-- 其中 `net` / `crypto` / `js` 的部分行为为轻量实现，用于接口稳定和回归验证；生产级能力可通过宿主 runtime 替换。
+- 其中 `net` / `crypto` / `utils` 的部分行为为轻量实现，用于接口稳定和回归验证；生产级能力可通过宿主 runtime 替换。
 
 ## 目录
 
@@ -17,7 +17,7 @@
 3. [string](#string)
 4. [array](#array)
 5. [container](#container)
-6. [js](#js)
+6. [utils](#utils)
 7. [filesystem](#filesystem)
 8. [net](#net)
 9. [crypto](#crypto)
@@ -101,7 +101,7 @@
 | `vectorRemove` | `vectorRemove(vec: vector, index: i64)` | `any` | Remove vector element at index |
 | `vectorSet` | `vectorSet(vec: vector, index: i64, value: any)` | `vector` | Set vector element at index |
 
-## js
+## utils
 
 | 函数 | 签名 | 返回类型 | 描述 |
 |---|---|---|---|

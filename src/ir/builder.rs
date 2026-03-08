@@ -9,6 +9,7 @@ use std::collections::{HashMap, HashSet};
 enum ParamLayout {
     Scalar {
         name: String,
+        is_string: bool,
     },
     Struct {
         name: String,
@@ -31,13 +32,17 @@ pub struct IRBuilder {
     variables: HashMap<String, String>,
     defined_functions: HashSet<String>,
     builtin_functions: HashSet<String>,
+    builtin_return_types: HashMap<String, String>,
     last_expr_value: Option<IRValue>,
     // Track if current block has a terminator (return/branch)
     current_block_terminated: bool,
     struct_defs: HashMap<String, Vec<String>>,
     struct_var_types: HashMap<String, String>,
     struct_field_ptrs: HashMap<(String, String), String>,
+    string_variables: HashSet<String>,
+    declared_string_variables: HashSet<String>,
     function_param_layouts: HashMap<String, Vec<ParamLayout>>,
+    function_return_types: HashMap<String, String>,
     struct_return_templates: HashMap<String, StructReturnTemplate>,
 }
 
@@ -105,7 +110,7 @@ impl IRBuilder {
         )
     }
 
-    fn is_runtime_js_builtin(name: &str) -> bool {
+    fn is_runtime_utils_builtin(name: &str) -> bool {
         matches!(
             name,
             "parseInt"
@@ -255,12 +260,20 @@ impl IRBuilder {
         }
     }
 
+    fn type_name_is_string(type_name: &str) -> bool {
+        type_name.eq_ignore_ascii_case("string")
+    }
+
     pub fn new() -> Self {
-        let builtin_functions = Stdlib::new()
-            .all_functions()
-            .into_iter()
-            .map(|func| func.name.clone())
-            .collect();
+        let stdlib = Stdlib::new();
+        let mut builtin_functions = HashSet::new();
+        let mut builtin_return_types = HashMap::new();
+        for func in stdlib.all_functions() {
+            builtin_functions.insert(func.name.clone());
+            if let Some(ret) = &func.return_type {
+                builtin_return_types.insert(func.name.clone(), ret.clone());
+            }
+        }
 
         IRBuilder {
             module: IRModule::new(),
@@ -269,12 +282,16 @@ impl IRBuilder {
             variables: HashMap::new(),
             defined_functions: HashSet::new(),
             builtin_functions,
+            builtin_return_types,
             last_expr_value: None,
             current_block_terminated: false,
             struct_defs: HashMap::new(),
             struct_var_types: HashMap::new(),
             struct_field_ptrs: HashMap::new(),
+            string_variables: HashSet::new(),
+            declared_string_variables: HashSet::new(),
             function_param_layouts: HashMap::new(),
+            function_return_types: HashMap::new(),
             struct_return_templates: HashMap::new(),
         }
     }
@@ -352,6 +369,8 @@ impl IRBuilder {
                 self.variables.clear();
                 self.struct_var_types.clear();
                 self.struct_field_ptrs.clear();
+                self.string_variables.clear();
+                self.declared_string_variables.clear();
 
                 let mut func = IRFunction::new(name.clone(), IRType::I64);
                 let layouts = self
@@ -363,6 +382,11 @@ impl IRBuilder {
                             .iter()
                             .map(|param| ParamLayout::Scalar {
                                 name: param.name.clone(),
+                                is_string: param
+                                    .type_annotation
+                                    .as_deref()
+                                    .map(Self::type_name_is_string)
+                                    .unwrap_or(false),
                             })
                             .collect()
                     });
@@ -370,7 +394,7 @@ impl IRBuilder {
 
                 for layout in layouts {
                     match layout {
-                        ParamLayout::Scalar { name } => {
+                        ParamLayout::Scalar { name, is_string } => {
                             let ptr = format!("arg{}", arg_index);
                             arg_index += 1;
                             func.params.push((ptr.clone(), IRType::I64));
@@ -381,7 +405,11 @@ impl IRBuilder {
                                     ty: IRType::I64,
                                 },
                             );
-                            self.variables.insert(name, ptr);
+                            self.variables.insert(name.clone(), ptr);
+                            if is_string {
+                                self.string_variables.insert(name.clone());
+                                self.declared_string_variables.insert(name);
+                            }
                         }
                         ParamLayout::Struct {
                             name,
@@ -431,6 +459,8 @@ impl IRBuilder {
         self.variables.clear();
         self.struct_var_types.clear();
         self.struct_field_ptrs.clear();
+        self.string_variables.clear();
+        self.declared_string_variables.clear();
 
         // Use _user_main to avoid conflict with C runtime's main
         let mut main_func = IRFunction::new("_user_main".to_string(), IRType::I64);
@@ -463,6 +493,7 @@ impl IRBuilder {
 
     fn collect_function_metadata(&mut self, program: &Program) {
         self.function_param_layouts.clear();
+        self.function_return_types.clear();
         self.struct_return_templates.clear();
 
         for stmt in &program.statements {
@@ -490,9 +521,19 @@ impl IRBuilder {
                 }
                 layouts.push(ParamLayout::Scalar {
                     name: param.name.clone(),
+                    is_string: param
+                        .type_annotation
+                        .as_deref()
+                        .map(Self::type_name_is_string)
+                        .unwrap_or(false),
                 });
             }
             self.function_param_layouts.insert(name.clone(), layouts);
+
+            if let Some(ret_type) = return_type {
+                self.function_return_types
+                    .insert(name.clone(), ret_type.clone());
+            }
 
             if let Some(ret_type) = return_type {
                 if self.struct_defs.contains_key(ret_type) {
@@ -713,6 +754,37 @@ impl IRBuilder {
             .map(|field| &field.value)
     }
 
+    fn builtin_returns_string(&self, name: &str) -> bool {
+        self.builtin_return_types
+            .get(name)
+            .map(|ty| Self::type_name_is_string(ty))
+            .unwrap_or(false)
+    }
+
+    fn function_returns_string(&self, name: &str) -> bool {
+        self.function_return_types
+            .get(name)
+            .map(|ty| Self::type_name_is_string(ty))
+            .unwrap_or(false)
+    }
+
+    fn expr_is_string(&self, expr: &Expr) -> bool {
+        match expr {
+            Expr::Literal(Literal::String(_)) => true,
+            Expr::Identifier(name) => {
+                self.string_variables.contains(name)
+                    || self.declared_string_variables.contains(name)
+            }
+            Expr::Call { callee, .. } => {
+                self.builtin_returns_string(callee) || self.function_returns_string(callee)
+            }
+            Expr::Binary { .. }
+            | Expr::Literal(_)
+            | Expr::StructInit { .. }
+            | Expr::FieldAccess { .. } => false,
+        }
+    }
+
     fn apply_struct_update(
         &mut self,
         func: &mut IRFunction,
@@ -862,6 +934,16 @@ impl IRBuilder {
                     return;
                 }
 
+                let declared_as_string = type_annotation
+                    .as_deref()
+                    .map(Self::type_name_is_string)
+                    .unwrap_or(false);
+                if declared_as_string {
+                    self.declared_string_variables.insert(name.clone());
+                } else {
+                    self.declared_string_variables.remove(name);
+                }
+
                 let ptr = self.fresh_var();
                 self.add_instr(
                     func,
@@ -872,6 +954,7 @@ impl IRBuilder {
                 );
 
                 if let Some(init_expr) = init {
+                    let init_is_string = self.expr_is_string(init_expr) || declared_as_string;
                     let value = self.build_expr(init_expr, func);
                     self.add_instr(
                         func,
@@ -882,6 +965,15 @@ impl IRBuilder {
                         },
                     );
                     self.last_expr_value = Some(IRValue::Var(ptr.clone()));
+                    if init_is_string {
+                        self.string_variables.insert(name.clone());
+                    } else {
+                        self.string_variables.remove(name);
+                    }
+                } else if declared_as_string {
+                    self.string_variables.insert(name.clone());
+                } else {
+                    self.string_variables.remove(name);
                 }
 
                 self.variables.insert(name.clone(), ptr);
@@ -900,6 +992,8 @@ impl IRBuilder {
                 }
 
                 if let Some(ptr) = self.variables.get(name).cloned() {
+                    let value_is_string =
+                        self.expr_is_string(value) || self.declared_string_variables.contains(name);
                     let val = self.build_expr(value, func);
                     self.add_instr(
                         func,
@@ -909,6 +1003,11 @@ impl IRBuilder {
                             value: val,
                         },
                     );
+                    if value_is_string {
+                        self.string_variables.insert(name.clone());
+                    } else {
+                        self.string_variables.remove(name);
+                    }
                 }
             }
 
@@ -1151,11 +1250,16 @@ impl IRBuilder {
                 {
                     if matches!(callee.as_str(), "print" | "println" | "eprint" | "eprintln") {
                         if let Some(value) = arg_values.first() {
+                            let arg_is_string = args
+                                .first()
+                                .map(|arg| self.expr_is_string(arg))
+                                .unwrap_or(false)
+                                || matches!(value, IRValue::Str(_));
                             let function = match (callee.as_str(), value) {
-                                ("print", IRValue::Str(_)) => Self::PRINT_STR,
-                                ("println", IRValue::Str(_)) => Self::PRINTLN_STR,
-                                ("eprint", IRValue::Str(_)) => Self::EPRINT_STR,
-                                ("eprintln", IRValue::Str(_)) => Self::EPRINTLN_STR,
+                                ("print", _) if arg_is_string => Self::PRINT_STR,
+                                ("println", _) if arg_is_string => Self::PRINTLN_STR,
+                                ("eprint", _) if arg_is_string => Self::EPRINT_STR,
+                                ("eprintln", _) if arg_is_string => Self::EPRINTLN_STR,
                                 ("print", _) => Self::PRINT_I64,
                                 ("println", _) => Self::PRINTLN_I64,
                                 ("eprint", _) => Self::EPRINT_I64,
@@ -1179,7 +1283,7 @@ impl IRBuilder {
                         || Self::is_runtime_math_builtin(callee)
                         || Self::is_runtime_array_builtin(callee)
                         || Self::is_runtime_string_builtin(callee)
-                        || Self::is_runtime_js_builtin(callee)
+                        || Self::is_runtime_utils_builtin(callee)
                         || Self::is_runtime_io_builtin(callee)
                         || Self::is_runtime_filesystem_builtin(callee)
                         || Self::is_runtime_net_builtin(callee)
@@ -1387,6 +1491,58 @@ mod tests {
 
         assert!(has_print_str);
         assert!(has_println_str);
+    }
+
+    #[test]
+    fn test_println_fetch_lowers_to_string_runtime_helper() {
+        let mut parser = Parser::new(
+            r#"
+            println(fetch("https://baidu.com"));
+            let resp = httpGet("https://baidu.com");
+            println(resp);
+            "#,
+        );
+        let program = parser.parse().unwrap();
+        let module = IRBuilder::new().build(&program);
+        let main = module
+            .functions
+            .iter()
+            .find(|func| func.name == "_user_main")
+            .unwrap();
+
+        let fetch_call_exists = main.instructions.iter().any(|instr| {
+            matches!(
+                instr,
+                IRInstruction::Call { function, .. } if function == "fetch"
+            )
+        });
+        let http_get_call_exists = main.instructions.iter().any(|instr| {
+            matches!(
+                instr,
+                IRInstruction::Call { function, .. } if function == "httpGet"
+            )
+        });
+        let string_println_calls = main
+            .instructions
+            .iter()
+            .filter(|instr| {
+                matches!(
+                    instr,
+                    IRInstruction::Call { function, .. } if function == IRBuilder::PRINTLN_STR
+                )
+            })
+            .count();
+        let i64_println_call_exists = main.instructions.iter().any(|instr| {
+            matches!(
+                instr,
+                IRInstruction::Call { function, .. } if function == IRBuilder::PRINTLN_I64
+            )
+        });
+
+        assert!(fetch_call_exists);
+        assert!(http_get_call_exists);
+        assert_eq!(string_println_calls, 2);
+        assert!(!i64_println_call_exists);
     }
 
     #[test]

@@ -28,7 +28,7 @@
 - `string`：`strlen/concat/substr/char_at/to_upper/to_lower/trim/contains`
 - `array`：`push/pop/arrlen/get/set/first/last/reverse`
 - `container`：`vector*` / `hashMap*`
-- `js`：`parseInt/parseFloat/.../map/filter/reduce`
+- `utils`：`parseInt/parseFloat/.../map/filter/reduce`
 - `filesystem`：`readFile/writeFile/.../cwd`
 - `net`：`fetch/http*/download/upload/dnsLookup/ping/websocketConnect`
 - `crypto`：`md5/sha*/hmac/pbkdf2/encrypt/decrypt/sign/verify/random*`
@@ -49,7 +49,7 @@
 - `string`（8）
 - `array`（8）
 - `container`（20）
-- `js`（18）
+- `utils`（18）
 - `filesystem`（12）
 - `net`（10）
 - `crypto`（12）
@@ -102,7 +102,7 @@ println(apply(inc, 41));
 - `examples/stdlib/string_demo.ziv`
 - `examples/stdlib/array_demo.ziv`
 - `examples/stdlib/container_demo.ziv`
-- `examples/stdlib/js_demo.ziv`
+- `examples/stdlib/utils_demo.ziv`
 - `examples/stdlib/filesystem_demo.ziv`
 - `examples/stdlib/net_demo.ziv`
 - `examples/stdlib/crypto_demo.ziv`
@@ -131,7 +131,7 @@ done
 ## 6. 当前实现边界
 
 - 117 个标准库函数均可执行、可编译、可测试。
-- `net` / `crypto` / `js` 的部分函数当前为轻量实现（接口稳定、结果可预测），优先服务语言回归测试与示例验证。
+- `net` / `crypto` / `utils` 的部分函数当前为轻量实现（接口稳定、结果可预测），优先服务语言回归测试与示例验证。
 - 若业务需要完整生产能力（例如真实 HTTP 客户端栈、严格密码学实现、复杂 JSON 语义），建议替换为外部链接 runtime 或宿主库实现。
 
 ## 7. 推荐实践

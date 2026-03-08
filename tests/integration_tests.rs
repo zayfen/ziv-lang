@@ -1,10 +1,111 @@
 use std::fs;
+use std::io::{Read, Write};
+use std::net::{TcpListener, TcpStream};
 use std::path::Path;
 use std::process::Command;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::thread;
+use std::time::{Duration, Instant};
 use tempfile::tempdir;
 
 fn bin() -> &'static str {
     env!("CARGO_BIN_EXE_ziv")
+}
+
+fn parse_http_request(stream: &mut TcpStream) -> (String, String, String) {
+    let _ = stream.set_read_timeout(Some(Duration::from_millis(500)));
+    let mut data = Vec::new();
+    let mut buf = [0_u8; 4096];
+
+    loop {
+        match stream.read(&mut buf) {
+            Ok(0) => break,
+            Ok(n) => {
+                data.extend_from_slice(&buf[..n]);
+                if n < buf.len() {
+                    break;
+                }
+                if data.len() > 128 * 1024 {
+                    break;
+                }
+            }
+            Err(err)
+                if err.kind() == std::io::ErrorKind::WouldBlock
+                    || err.kind() == std::io::ErrorKind::TimedOut =>
+            {
+                break;
+            }
+            Err(_) => break,
+        }
+    }
+
+    let text = String::from_utf8_lossy(&data);
+    let (header_text, body_text) = text
+        .split_once("\r\n\r\n")
+        .map(|(h, b)| (h, b))
+        .unwrap_or((text.as_ref(), ""));
+
+    let mut lines = header_text.lines();
+    let request_line = lines.next().unwrap_or("GET / HTTP/1.1");
+    let mut request_parts = request_line.split_whitespace();
+    let method = request_parts.next().unwrap_or("GET").to_string();
+    let path = request_parts.next().unwrap_or("/").to_string();
+
+    (method, path, body_text.to_string())
+}
+
+fn write_http_response(stream: &mut TcpStream, body: &str) {
+    let response = format!(
+        "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+        body.len(),
+        body
+    );
+    let _ = stream.write_all(response.as_bytes());
+    let _ = stream.flush();
+}
+
+fn start_mock_http_server() -> (String, Arc<AtomicBool>, thread::JoinHandle<()>) {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+    listener.set_nonblocking(true).unwrap();
+
+    let stop = Arc::new(AtomicBool::new(false));
+    let stop_for_thread = Arc::clone(&stop);
+
+    let handle = thread::spawn(move || {
+        let deadline = Instant::now() + Duration::from_secs(30);
+        while !stop_for_thread.load(Ordering::Relaxed) && Instant::now() < deadline {
+            match listener.accept() {
+                Ok((mut stream, _)) => {
+                    let (method, path, body) = parse_http_request(&mut stream);
+                    let resp_body =
+                        if method == "GET" && (path == "/fetch" || path.starts_with("/get")) {
+                            "FETCH_OK".to_string()
+                        } else if method == "GET"
+                            && (path == "/download" || path.starts_with("/bytes/12"))
+                        {
+                            "BYTES_12_DATA".to_string()
+                        } else if method == "POST" && path == "/post" {
+                            format!("POST:{body}")
+                        } else if method == "PUT" && (path == "/put" || path == "/upload") {
+                            format!("PUT:{body}")
+                        } else if method == "DELETE" && path == "/delete" {
+                            "DELETE_OK".to_string()
+                        } else {
+                            "UNKNOWN".to_string()
+                        };
+                    write_http_response(&mut stream, &resp_body);
+                }
+                Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => {
+                    thread::sleep(Duration::from_millis(10));
+                }
+                Err(_) => break,
+            }
+        }
+    });
+
+    (format!("http://127.0.0.1:{}", addr.port()), stop, handle)
 }
 
 #[test]
@@ -460,10 +561,17 @@ fn test_container_runtime_behaviour_compiles_and_runs() {
 
 #[test]
 fn test_stdlib_runtime_modules_behaviour_compiles_and_runs() {
+    let (base_url, stop_server, server_handle) = start_mock_http_server();
+    let fetch_url = format!("{base_url}/fetch");
+    let post_url = format!("{base_url}/post");
+    let put_url = format!("{base_url}/put");
+    let delete_url = format!("{base_url}/delete");
+    let download_url = format!("{base_url}/download");
+    let upload_url = format!("{base_url}/upload");
+
     let dir = tempdir().unwrap();
     let src = dir.path().join("stdlib_runtime_modules.ziv");
-    fs::write(
-        &src,
+    let source = format!(
         r#"
         println(strlen(concat("ab", "cd")));
         println(strlen(substr("abcdef", 1, 3)));
@@ -517,20 +625,20 @@ fn test_stdlib_runtime_modules_behaviour_compiles_and_runs() {
         println(strlen(randomBytes(8)));
         println(strlen(randomUUID()));
 
-        println(strlen(fetch("http://example.com")));
-        println(strlen(httpGet("http://example.com")));
-        println(strlen(httpPost("http://example.com", "x")));
-        println(strlen(httpPut("http://example.com", "x")));
-        println(strlen(httpDelete("http://example.com")));
-        println(download("http://example.com", "net.txt"));
+        println(strlen(fetch("{fetch_url}")));
+        println(strlen(httpGet("{fetch_url}")));
+        println(strlen(httpPost("{post_url}", "x")));
+        println(strlen(httpPut("{put_url}", "x")));
+        println(strlen(httpDelete("{delete_url}")));
+        println(download("{download_url}", "net.txt"));
         println(exists("net.txt"));
-        println(strlen(upload("http://example.com", "net.txt")));
+        println(strlen(upload("{upload_url}", "net.txt")));
         println(websocketConnect("wss://example.com/ws"));
         println(strlen(dnsLookup("localhost")));
         println(ping("localhost"));
-        "#,
-    )
-    .unwrap();
+        "#
+    );
+    fs::write(&src, source).unwrap();
 
     let output = Command::new(bin())
         .arg(&src)
@@ -554,16 +662,61 @@ fn test_stdlib_runtime_modules_behaviour_compiles_and_runs() {
         "run stderr: {}",
         String::from_utf8_lossy(&run.stderr)
     );
+    stop_server.store(true, Ordering::Relaxed);
+    let _ = server_handle.join();
     assert_eq!(
         String::from_utf8_lossy(&run.stdout),
-        "4\n3\n65\n1\n1\n1\n3\n1\n5\n1\n5\n1\n1\n1\n0\n1\n1\n1\n0\n5\n1\n0\n1\n4\n2\n4\n2\n5\n3\n2\n2\n5\n3\n8\n2\n32\n40\n64\n128\n64\n64\n11\n5\n1\n16\n36\n22\n22\n25\n24\n25\n1\n1\n30\n1\n9\n1\n"
+        "4\n3\n65\n1\n1\n1\n3\n1\n5\n1\n5\n1\n1\n1\n0\n1\n1\n1\n0\n5\n1\n0\n1\n4\n2\n4\n2\n5\n3\n2\n2\n5\n3\n8\n2\n32\n40\n64\n128\n64\n64\n11\n5\n1\n16\n36\n8\n8\n6\n5\n9\n1\n1\n17\n1\n9\n1\n"
     );
 }
 
 #[test]
-fn test_stdlib_math_array_js_io_runtime_behaviour_compiles_and_runs() {
+fn test_println_can_output_fetch_and_httpget_string_results() {
+    let (base_url, stop_server, server_handle) = start_mock_http_server();
+    let fetch_url = format!("{base_url}/fetch");
+
     let dir = tempdir().unwrap();
-    let src = dir.path().join("stdlib_math_array_js_io_runtime.ziv");
+    let src = dir.path().join("print_fetch_httpget.ziv");
+    let source = format!(
+        r#"
+        println(fetch("{fetch_url}"));
+        let resp = httpGet("{fetch_url}");
+        println(resp);
+        "#
+    );
+    fs::write(&src, source).unwrap();
+
+    let output = Command::new(bin())
+        .arg(&src)
+        .arg("-o")
+        .arg("print_fetch_httpget_bin")
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "compile stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let run = Command::new(dir.path().join("print_fetch_httpget_bin"))
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+    assert!(
+        run.status.success(),
+        "run stderr: {}",
+        String::from_utf8_lossy(&run.stderr)
+    );
+    stop_server.store(true, Ordering::Relaxed);
+    let _ = server_handle.join();
+    assert_eq!(String::from_utf8_lossy(&run.stdout), "FETCH_OK\nFETCH_OK\n");
+}
+
+#[test]
+fn test_stdlib_math_array_utils_io_runtime_behaviour_compiles_and_runs() {
+    let dir = tempdir().unwrap();
+    let src = dir.path().join("stdlib_math_array_utils_io_runtime.ziv");
     fs::write(
         &src,
         r#"
@@ -620,7 +773,7 @@ fn test_stdlib_math_array_js_io_runtime_behaviour_compiles_and_runs() {
     let output = Command::new(bin())
         .arg(&src)
         .arg("-o")
-        .arg("stdlib_math_array_js_io_runtime_bin")
+        .arg("stdlib_math_array_utils_io_runtime_bin")
         .current_dir(dir.path())
         .output()
         .unwrap();
@@ -630,7 +783,7 @@ fn test_stdlib_math_array_js_io_runtime_behaviour_compiles_and_runs() {
         String::from_utf8_lossy(&output.stderr)
     );
 
-    let run = Command::new(dir.path().join("stdlib_math_array_js_io_runtime_bin"))
+    let run = Command::new(dir.path().join("stdlib_math_array_utils_io_runtime_bin"))
         .current_dir(dir.path())
         .output()
         .unwrap();

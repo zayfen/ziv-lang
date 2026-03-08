@@ -8,10 +8,10 @@ pub mod crypto;
 pub mod encoding;
 pub mod filesystem;
 pub mod io;
-pub mod js;
 pub mod math;
 pub mod net;
 pub mod string;
+pub mod utils;
 
 use std::collections::HashMap;
 
@@ -55,8 +55,8 @@ impl Stdlib {
         stdlib.register_crypto_functions();
         stdlib.register_encoding_functions();
 
-        // JavaScript-inspired high-frequency helpers.
-        stdlib.register_js_functions();
+        // High-frequency utility helpers.
+        stdlib.register_utils_functions();
 
         stdlib
     }
@@ -129,8 +129,8 @@ mod tests {
         let io_funcs = stdlib.functions_by_category("io");
         assert!(!io_funcs.is_empty());
 
-        let js_funcs = stdlib.functions_by_category("js");
-        assert!(!js_funcs.is_empty());
+        let utils_funcs = stdlib.functions_by_category("utils");
+        assert!(!utils_funcs.is_empty());
         let fs_funcs = stdlib.functions_by_category("filesystem");
         assert!(!fs_funcs.is_empty());
         let net_funcs = stdlib.functions_by_category("net");
@@ -157,7 +157,7 @@ mod tests {
         assert_eq!(stdlib.functions_by_category("string").len(), 8);
         assert_eq!(stdlib.functions_by_category("array").len(), 8);
         assert_eq!(stdlib.functions_by_category("container").len(), 20);
-        assert_eq!(stdlib.functions_by_category("js").len(), 18);
+        assert_eq!(stdlib.functions_by_category("utils").len(), 18);
         assert_eq!(stdlib.functions_by_category("filesystem").len(), 12);
         assert_eq!(stdlib.functions_by_category("net").len(), 10);
         assert_eq!(stdlib.functions_by_category("crypto").len(), 12);

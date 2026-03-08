@@ -1,10 +1,10 @@
-//! JavaScript-inspired high-frequency builtin functions.
+//! Utility high-frequency builtin functions.
 
 use super::{BuiltinFunction, BuiltinParam, Stdlib};
 
 impl Stdlib {
-    /// Register JavaScript-like helper builtins.
-    pub fn register_js_functions(&mut self) {
+    /// Register utility helper builtins.
+    pub fn register_utils_functions(&mut self) {
         self.register(BuiltinFunction {
             name: "parseInt".to_string(),
             params: vec![
@@ -18,7 +18,7 @@ impl Stdlib {
                 },
             ],
             return_type: Some("i64".to_string()),
-            category: "js".to_string(),
+            category: "utils".to_string(),
             description: "Parse an integer from text with optional radix".to_string(),
         });
 
@@ -29,7 +29,7 @@ impl Stdlib {
                 ty: "string".to_string(),
             }],
             return_type: Some("f64".to_string()),
-            category: "js".to_string(),
+            category: "utils".to_string(),
             description: "Parse a floating-point number from text".to_string(),
         });
 
@@ -40,7 +40,7 @@ impl Stdlib {
                 ty: "any".to_string(),
             }],
             return_type: Some("bool".to_string()),
-            category: "js".to_string(),
+            category: "utils".to_string(),
             description: "Return whether value is NaN-like".to_string(),
         });
 
@@ -51,7 +51,7 @@ impl Stdlib {
                 ty: "any".to_string(),
             }],
             return_type: Some("bool".to_string()),
-            category: "js".to_string(),
+            category: "utils".to_string(),
             description: "Return whether value is finite".to_string(),
         });
 
@@ -62,7 +62,7 @@ impl Stdlib {
                 ty: "any".to_string(),
             }],
             return_type: Some("number".to_string()),
-            category: "js".to_string(),
+            category: "utils".to_string(),
             description: "Coerce value to number".to_string(),
         });
 
@@ -73,7 +73,7 @@ impl Stdlib {
                 ty: "any".to_string(),
             }],
             return_type: Some("string".to_string()),
-            category: "js".to_string(),
+            category: "utils".to_string(),
             description: "Coerce value to string".to_string(),
         });
 
@@ -84,7 +84,7 @@ impl Stdlib {
                 ty: "any".to_string(),
             }],
             return_type: Some("bool".to_string()),
-            category: "js".to_string(),
+            category: "utils".to_string(),
             description: "Coerce value to boolean".to_string(),
         });
 
@@ -95,7 +95,7 @@ impl Stdlib {
                 ty: "string".to_string(),
             }],
             return_type: Some("any".to_string()),
-            category: "js".to_string(),
+            category: "utils".to_string(),
             description: "Parse JSON text".to_string(),
         });
 
@@ -106,7 +106,7 @@ impl Stdlib {
                 ty: "any".to_string(),
             }],
             return_type: Some("string".to_string()),
-            category: "js".to_string(),
+            category: "utils".to_string(),
             description: "Serialize value to JSON".to_string(),
         });
 
@@ -123,7 +123,7 @@ impl Stdlib {
                 },
             ],
             return_type: Some("bool".to_string()),
-            category: "js".to_string(),
+            category: "utils".to_string(),
             description: "Check whether text includes search".to_string(),
         });
 
@@ -140,7 +140,7 @@ impl Stdlib {
                 },
             ],
             return_type: Some("i64".to_string()),
-            category: "js".to_string(),
+            category: "utils".to_string(),
             description: "Return index of search in text".to_string(),
         });
 
@@ -157,7 +157,7 @@ impl Stdlib {
                 },
             ],
             return_type: Some("bool".to_string()),
-            category: "js".to_string(),
+            category: "utils".to_string(),
             description: "Return whether text starts with prefix".to_string(),
         });
 
@@ -174,7 +174,7 @@ impl Stdlib {
                 },
             ],
             return_type: Some("bool".to_string()),
-            category: "js".to_string(),
+            category: "utils".to_string(),
             description: "Return whether text ends with suffix".to_string(),
         });
 
@@ -191,7 +191,7 @@ impl Stdlib {
                 },
             ],
             return_type: Some("array".to_string()),
-            category: "js".to_string(),
+            category: "utils".to_string(),
             description: "Split text by separator".to_string(),
         });
 
@@ -212,7 +212,7 @@ impl Stdlib {
                 },
             ],
             return_type: Some("string".to_string()),
-            category: "js".to_string(),
+            category: "utils".to_string(),
             description: "Replace first pattern in text".to_string(),
         });
 
@@ -229,7 +229,7 @@ impl Stdlib {
                 },
             ],
             return_type: Some("array".to_string()),
-            category: "js".to_string(),
+            category: "utils".to_string(),
             description: "Map array with callback".to_string(),
         });
 
@@ -246,7 +246,7 @@ impl Stdlib {
                 },
             ],
             return_type: Some("array".to_string()),
-            category: "js".to_string(),
+            category: "utils".to_string(),
             description: "Filter array with callback".to_string(),
         });
 
@@ -267,7 +267,7 @@ impl Stdlib {
                 },
             ],
             return_type: Some("any".to_string()),
-            category: "js".to_string(),
+            category: "utils".to_string(),
             description: "Reduce array with callback and initial value".to_string(),
         });
     }
@@ -283,7 +283,7 @@ mod tests {
     }
 
     #[test]
-    fn test_js_functions_registered() {
+    fn test_utils_functions_registered() {
         let stdlib = Stdlib::new();
         for name in [
             "parseInt",
@@ -310,7 +310,7 @@ mod tests {
     }
 
     #[test]
-    fn test_js_function_signatures() {
+    fn test_utils_function_signatures() {
         let stdlib = Stdlib::new();
 
         let parse_int = stdlib.get("parseInt").expect("parseInt must exist");

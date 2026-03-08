@@ -1801,58 +1801,233 @@ int64_t randomUUID(void) {
 }
 
 // Net runtime
-static int64_t ziv_method_url(const char* method, const char* url) {
-    char* p1 = ziv_join3(method, ":", url);
-    return (int64_t)(intptr_t)p1;
+static char* ziv_shell_escape(const char* input) {
+    const char* src = input == NULL ? "" : input;
+    size_t out_len = 2; // opening + closing quote
+    for (size_t i = 0; src[i] != '\0'; i++) {
+        out_len += (src[i] == '\'') ? 4 : 1; // '\'' expands to 4 bytes
+    }
+    char* out = (char*)malloc(out_len + 1);
+    if (out == NULL) {
+        return NULL;
+    }
+
+    size_t o = 0;
+    out[o++] = '\'';
+    for (size_t i = 0; src[i] != '\0'; i++) {
+        if (src[i] == '\'') {
+            memcpy(out + o, "'\\''", 4);
+            o += 4;
+        } else {
+            out[o++] = src[i];
+        }
+    }
+    out[o++] = '\'';
+    out[o] = '\0';
+    return out;
+}
+
+static char* ziv_run_capture_cmd(const char* cmd) {
+    if (cmd == NULL) {
+        return ziv_strdup_safe("");
+    }
+
+    FILE* pipe = popen(cmd, "r");
+    if (pipe == NULL) {
+        return ziv_strdup_safe("");
+    }
+
+    size_t cap = 4096;
+    size_t len = 0;
+    char* out = (char*)malloc(cap);
+    if (out == NULL) {
+        pclose(pipe);
+        return 0;
+    }
+
+    int ch = 0;
+    while ((ch = fgetc(pipe)) != EOF) {
+        if (len + 1 >= cap) {
+            size_t next_cap = cap * 2;
+            char* next = (char*)realloc(out, next_cap);
+            if (next == NULL) {
+                free(out);
+                pclose(pipe);
+                return 0;
+            }
+            out = next;
+            cap = next_cap;
+        }
+        out[len++] = (char)ch;
+    }
+    out[len] = '\0';
+
+    (void)pclose(pipe);
+    return out;
+}
+
+static int64_t ziv_run_status_cmd(const char* cmd) {
+    if (cmd == NULL) {
+        return 0;
+    }
+    return system(cmd) == 0 ? 1 : 0;
+}
+
+static int64_t ziv_http_request_no_body(const char* method, const char* url) {
+    char* method_esc = ziv_shell_escape(method == NULL ? "GET" : method);
+    char* url_esc = ziv_shell_escape(url == NULL ? "" : url);
+    if (method_esc == NULL || url_esc == NULL) {
+        free(method_esc);
+        free(url_esc);
+        return (int64_t)(intptr_t)ziv_strdup_safe("");
+    }
+
+    size_t cmd_len = strlen(method_esc) + strlen(url_esc) + 224;
+    char* cmd = (char*)malloc(cmd_len);
+    if (cmd == NULL) {
+        free(method_esc);
+        free(url_esc);
+        return 0;
+    }
+    snprintf(
+        cmd,
+        cmd_len,
+        "curl -sS -L --connect-timeout 10 --max-time 30 -X %s %s 2>&1",
+        method_esc,
+        url_esc
+    );
+
+    char* out = ziv_run_capture_cmd(cmd);
+    free(cmd);
+    free(method_esc);
+    free(url_esc);
+    return (int64_t)(intptr_t)out;
+}
+
+static int64_t ziv_http_request_with_body(const char* method, const char* url, const char* body) {
+    char* method_esc = ziv_shell_escape(method == NULL ? "POST" : method);
+    char* url_esc = ziv_shell_escape(url == NULL ? "" : url);
+    char* body_esc = ziv_shell_escape(body == NULL ? "" : body);
+    if (method_esc == NULL || url_esc == NULL || body_esc == NULL) {
+        free(method_esc);
+        free(url_esc);
+        free(body_esc);
+        return (int64_t)(intptr_t)ziv_strdup_safe("");
+    }
+
+    size_t cmd_len = strlen(method_esc) + strlen(url_esc) + strlen(body_esc) + 256;
+    char* cmd = (char*)malloc(cmd_len);
+    if (cmd == NULL) {
+        free(method_esc);
+        free(url_esc);
+        free(body_esc);
+        return 0;
+    }
+    snprintf(
+        cmd,
+        cmd_len,
+        "curl -sS -L --connect-timeout 10 --max-time 30 -X %s --data-binary %s %s 2>&1",
+        method_esc,
+        body_esc,
+        url_esc
+    );
+
+    char* out = ziv_run_capture_cmd(cmd);
+    free(cmd);
+    free(method_esc);
+    free(url_esc);
+    free(body_esc);
+    return (int64_t)(intptr_t)out;
 }
 
 int64_t fetch(const char* url) {
-    return ziv_method_url("GET", url == NULL ? "" : url);
+    return ziv_http_request_no_body("GET", url);
 }
 
 int64_t httpGet(const char* url) {
-    return ziv_method_url("GET", url == NULL ? "" : url);
+    return ziv_http_request_no_body("GET", url);
 }
 
 int64_t httpPost(const char* url, const char* body) {
-    char* p1 = ziv_join3("POST:", url == NULL ? "" : url, ":");
-    char* out = ziv_join3(p1, body == NULL ? "" : body, "");
-    free(p1);
-    return (int64_t)(intptr_t)out;
+    return ziv_http_request_with_body("POST", url, body);
 }
 
 int64_t httpPut(const char* url, const char* body) {
-    char* p1 = ziv_join3("PUT:", url == NULL ? "" : url, ":");
-    char* out = ziv_join3(p1, body == NULL ? "" : body, "");
-    free(p1);
-    return (int64_t)(intptr_t)out;
+    return ziv_http_request_with_body("PUT", url, body);
 }
 
 int64_t httpDelete(const char* url) {
-    return ziv_method_url("DELETE", url == NULL ? "" : url);
+    return ziv_http_request_no_body("DELETE", url);
 }
 
 int64_t download(const char* url, const char* path) {
-    if (path == NULL) {
+    if (url == NULL || path == NULL) {
         return 0;
     }
-    FILE* fp = fopen(path, "wb");
-    if (fp == NULL) {
+
+    char* url_esc = ziv_shell_escape(url);
+    char* path_esc = ziv_shell_escape(path);
+    if (url_esc == NULL || path_esc == NULL) {
+        free(url_esc);
+        free(path_esc);
         return 0;
     }
-    const char* src = url == NULL ? "" : url;
-    fprintf(fp, "downloaded:%s", src);
-    fclose(fp);
-    return 1;
+
+    size_t cmd_len = strlen(url_esc) + strlen(path_esc) + 192;
+    char* cmd = (char*)malloc(cmd_len);
+    if (cmd == NULL) {
+        free(url_esc);
+        free(path_esc);
+        return 0;
+    }
+    snprintf(
+        cmd,
+        cmd_len,
+        "curl -sS -L --connect-timeout 10 --max-time 30 -o %s %s 2>/dev/null",
+        path_esc,
+        url_esc
+    );
+    int64_t ok = ziv_run_status_cmd(cmd);
+    free(cmd);
+    free(url_esc);
+    free(path_esc);
+    return ok;
 }
 
 int64_t upload(const char* url, const char* path) {
-    int64_t size = fileSize(path);
-    char size_buf[32];
-    snprintf(size_buf, sizeof(size_buf), "%lld", (long long)size);
-    char* p1 = ziv_join3("uploaded:", size_buf, ":");
-    char* out = ziv_join3(p1, url == NULL ? "" : url, "");
-    free(p1);
+    if (url == NULL || path == NULL) {
+        return (int64_t)(intptr_t)ziv_strdup_safe("");
+    }
+    if (exists(path) == 0) {
+        return (int64_t)(intptr_t)ziv_strdup_safe("");
+    }
+    char* url_esc = ziv_shell_escape(url);
+    char* path_esc = ziv_shell_escape(path);
+    if (url_esc == NULL || path_esc == NULL) {
+        free(url_esc);
+        free(path_esc);
+        return (int64_t)(intptr_t)ziv_strdup_safe("");
+    }
+
+    size_t cmd_len = strlen(url_esc) + strlen(path_esc) + 224;
+    char* cmd = (char*)malloc(cmd_len);
+    if (cmd == NULL) {
+        free(url_esc);
+        free(path_esc);
+        return 0;
+    }
+    snprintf(
+        cmd,
+        cmd_len,
+        "curl -sS -L --connect-timeout 10 --max-time 30 -X 'PUT' --upload-file %s %s 2>/dev/null",
+        path_esc,
+        url_esc
+    );
+
+    char* out = ziv_run_capture_cmd(cmd);
+    free(cmd);
+    free(url_esc);
+    free(path_esc);
     return (int64_t)(intptr_t)out;
 }
 

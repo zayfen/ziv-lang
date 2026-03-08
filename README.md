@@ -19,14 +19,14 @@ Ziv 是一门正在快速演进的系统编程语言，语法风格接近 JavaSc
   - `function` 定义、返回值、函数作为参数
   - `if/else`、`while`、块作用域
   - `struct` 定义、构造、字段访问、`+=` 字段覆盖
-- 标准库注册：117 个内置函数（IO/Math/String/Array/Container/JS/Filesystem/Net/Crypto/Encoding）
+- 标准库注册：117 个内置函数（IO/Math/String/Array/Container/Utils/Filesystem/Net/Crypto/Encoding）
 - 代码生成后端：Cranelift（默认）、x86_64、ARM64
 
 ## 重要说明
 
 - 当前默认可执行运行时已内置并可调用全部 10 类标准库函数（共 117 个）。
 - 这些函数已覆盖语义注册、IR 降级、链接与 examples/测试验证链路。
-- `net` / `crypto` / `js` 中部分能力当前采用轻量实现，目标是提供稳定接口与可重复测试结果；若需要完整生产级协议栈与安全语义，建议通过外部运行时对象或宿主库替换。
+- `net` / `crypto` / `utils` 中部分能力当前采用轻量实现，目标是提供稳定接口与可重复测试结果；若需要完整生产级协议栈与安全语义，建议通过外部运行时对象或宿主库替换。
 
 ## 快速开始
 

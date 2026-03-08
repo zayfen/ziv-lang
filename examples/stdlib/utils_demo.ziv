@@ -1,5 +1,5 @@
-// JavaScript-style builtins demo
-println("js demo");
+// Utility builtins demo
+println("utils demo");
 println(parseInt("42", 10));
 println(parseFloat("3.99"));
 println(isNaN(1));
@@ -29,4 +29,4 @@ println(get(mapped, 2));
 let filtered = filter(arr, 0);
 println(arrlen(filtered));
 println(reduce(arr, 0, 10));
-println("js done");
+println("utils done");

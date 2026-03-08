@@ -1,13 +1,34 @@
 // Network builtins demo
 println("net demo");
-println(strlen(fetch("u")));
-println(strlen(httpGet("u")));
-println(strlen(httpPost("u", "x")));
-println(strlen(httpPut("u", "x")));
-println(strlen(httpDelete("u")));
-println(download("u", "net_demo.bin"));
+let base = "https://httpbin.org";
+let get_url = concat(base, "/get?demo=ziv");
+let post_url = concat(base, "/post");
+let put_url = concat(base, "/put");
+let delete_url = concat(base, "/delete");
+let bytes_url = concat(base, "/bytes/12");
+
+let baidu_resp = httpGet("https://www.baidu.com");
+println(strlen(baidu_resp));
+println(substr(baidu_resp, 0, 24));
+
+let get_resp = fetch(get_url);
+println(substr(get_resp, 0, 24));
+let get_resp2 = httpGet(get_url);
+println(substr(get_resp2, 0, 24));
+let post_resp = httpPost(post_url, "x=1");
+println(substr(post_resp, 0, 24));
+let put_resp = httpPut(put_url, "y=2");
+println(substr(put_resp, 0, 24));
+let delete_resp = httpDelete(delete_url);
+println(substr(delete_resp, 0, 24));
+
+println(download(bytes_url, "net_demo.bin"));
 println(exists("net_demo.bin"));
-println(strlen(upload("u", "net_demo.bin")));
+println(fileSize("net_demo.bin") > 0);
+
+let upload_resp = upload(put_url, "net_demo.bin");
+println(substr(upload_resp, 0, 24));
+
 println(websocketConnect("wss://example.com/ws"));
 println(strlen(dnsLookup("localhost")) >= 7);
 println(ping("localhost"));
