@@ -27,6 +27,22 @@ fn stdlib_example_files() -> Vec<PathBuf> {
     files
 }
 
+fn expected_outputs(stem: &str) -> (&'static str, &'static str) {
+    match stem {
+        "hello" => ("Hello, Ziv!\n42\n30\n", ""),
+        "io_demo" => ("io demo\n12\nio done\n", ""),
+        "math_demo" => ("math demo\nmath done\n", ""),
+        "string_demo" => ("string demo\nstring done\n", ""),
+        "array_demo" => ("array demo\narray done\n", ""),
+        "js_demo" => ("js demo\njs done\n", ""),
+        "filesystem_demo" => ("filesystem demo\nfilesystem done\n", ""),
+        "net_demo" => ("net demo\nnet done\n", ""),
+        "crypto_demo" => ("crypto demo\ncrypto done\n", ""),
+        "encoding_demo" => ("encoding demo\nencoding done\n", ""),
+        _ => ("", ""),
+    }
+}
+
 fn parse_program(source: &str) -> Program {
     let mut parser = Parser::new(source);
     parser.parse().unwrap()
@@ -168,9 +184,18 @@ fn test_stdlib_examples_compile_and_run() {
             String::from_utf8_lossy(&run.stdout),
             String::from_utf8_lossy(&run.stderr)
         );
-
-        if stem == "hello" {
-            assert_eq!(String::from_utf8_lossy(&run.stdout), "Hello, Ziv!\n42\n30\n");
-        }
+        let (expected_stdout, expected_stderr) = expected_outputs(&stem);
+        assert_eq!(
+            String::from_utf8_lossy(&run.stdout),
+            expected_stdout,
+            "unexpected stdout for {}",
+            file.display()
+        );
+        assert_eq!(
+            String::from_utf8_lossy(&run.stderr),
+            expected_stderr,
+            "unexpected stderr for {}",
+            file.display()
+        );
     }
 }
