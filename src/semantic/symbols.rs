@@ -160,4 +160,21 @@ mod tests {
         // Should find original x
         assert_eq!(table.lookup("x").unwrap().ty, Type::Int);
     }
+
+    #[test]
+    fn test_lookup_current_scope_only() {
+        let mut table = SymbolTable::new();
+        table.define(Symbol::new(
+            "x".to_string(),
+            SymbolKind::Variable,
+            Type::Int,
+            0,
+        ));
+        assert!(table.lookup_current("x").is_some());
+
+        table.enter_scope();
+        assert!(table.lookup("x").is_some());
+        assert!(table.lookup_current("x").is_none());
+        assert_eq!(table.current_scope_level(), 1);
+    }
 }

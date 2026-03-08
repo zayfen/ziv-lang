@@ -32,6 +32,7 @@ impl CodeGenerator for LLVMTextGenerator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ir::{IRFunction, IRInstruction, IRType, IRValue};
 
     #[test]
     fn test_llvm_generator() {
@@ -39,5 +40,21 @@ mod tests {
         let module = IRModule::new();
         let result = gen.generate(&module);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_llvm_generator_with_function() {
+        let mut module = IRModule::new();
+        let mut func = IRFunction::new("main".to_string(), IRType::I64);
+        func.instructions.push(IRInstruction::Ret {
+            ty: IRType::I64,
+            value: Some(IRValue::Const(0)),
+        });
+        module.add_function(func);
+
+        let mut gen = LLVMTextGenerator::new();
+        let result = gen.generate(&module).unwrap();
+        assert!(result.contains("declare i32 @printf"));
+        assert!(result.contains("@main"));
     }
 }

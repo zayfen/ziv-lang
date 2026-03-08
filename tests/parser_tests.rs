@@ -57,7 +57,7 @@ fn test_parse_binary_expression() {
             assert_eq!(name, "result");
             if let Some(expr) = init {
                 match expr {
-                    Expr::Binary { left, op, right } => {
+                    Expr::Binary { left, op: _, right } => {
                         assert!(matches!(left.as_ref(), Expr::Literal(_)));
                         assert!(matches!(right.as_ref(), Expr::Literal(_)));
                     }

@@ -72,6 +72,23 @@ mod tests {
     }
 
     #[test]
+    fn test_analyze_builtin_call() {
+        let mut parser = crate::parser::Parser::new("println(42);");
+        let program = parser.parse().unwrap();
+
+        let mut analyzer = SemanticAnalyzer::new();
+        let result = analyzer.analyze(&program);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_default_constructor() {
+        let mut analyzer = SemanticAnalyzer::default();
+        let program = Program::new(vec![]);
+        assert!(analyzer.analyze(&program).is_ok());
+    }
+
+    #[test]
     fn test_undefined_variable_error() {
         let mut parser = crate::parser::Parser::new("let y = x;");
         let program = parser.parse().unwrap();

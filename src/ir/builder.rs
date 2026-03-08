@@ -2,25 +2,41 @@
 
 use crate::ir::{IRFunction, IRInstruction, IRModule, IRType, IRValue};
 use crate::parser::ast::*;
-use std::collections::HashMap;
+use crate::stdlib::Stdlib;
+use std::collections::{HashMap, HashSet};
 
 pub struct IRBuilder {
     module: IRModule,
     var_counter: usize,
     label_counter: usize,
     variables: HashMap<String, String>,
+    defined_functions: HashSet<String>,
+    builtin_functions: HashSet<String>,
     last_expr_value: Option<IRValue>,
     // Track if current block has a terminator (return/branch)
     current_block_terminated: bool,
 }
 
 impl IRBuilder {
+    const PRINT_I64: &'static str = "ziv_print_i64";
+    const PRINTLN_I64: &'static str = "ziv_println_i64";
+    const PRINT_STR: &'static str = "ziv_print_str";
+    const PRINTLN_STR: &'static str = "ziv_println_str";
+
     pub fn new() -> Self {
+        let builtin_functions = Stdlib::new()
+            .all_functions()
+            .into_iter()
+            .map(|func| func.name.clone())
+            .collect();
+
         IRBuilder {
             module: IRModule::new(),
             var_counter: 0,
             label_counter: 0,
             variables: HashMap::new(),
+            defined_functions: HashSet::new(),
+            builtin_functions,
             last_expr_value: None,
             current_block_terminated: false,
         }
@@ -70,6 +86,15 @@ impl IRBuilder {
     }
 
     pub fn build(mut self, program: &Program) -> IRModule {
+        self.defined_functions = program
+            .statements
+            .iter()
+            .filter_map(|stmt| match stmt {
+                Stmt::FunctionDecl { name, .. } => Some(name.clone()),
+                _ => None,
+            })
+            .collect();
+
         // First pass: collect all function definitions
         for stmt in &program.statements {
             if let Stmt::FunctionDecl {
@@ -210,7 +235,6 @@ impl IRBuilder {
 
                 // Then branch
                 self.add_instr(func, IRInstruction::Label(then_label));
-                let then_terminated = self.current_block_terminated;
                 for stmt in then_branch {
                     self.build_stmt(stmt, func);
                 }
@@ -272,6 +296,7 @@ impl IRBuilder {
         match expr {
             Expr::Literal(lit) => match lit {
                 Literal::Number(n) => IRValue::Const(*n),
+                Literal::String(s) => IRValue::Str(s.clone()),
                 _ => IRValue::Const(0),
             },
 
@@ -373,6 +398,32 @@ impl IRBuilder {
                     arg_values.push(self.build_expr(arg, func));
                 }
 
+                // Keep most built-ins semantic-only for now, but lower print/println to
+                // concrete runtime calls so executable output matches source behavior.
+                if self.builtin_functions.contains(callee) && !self.defined_functions.contains(callee) {
+                    if matches!(callee.as_str(), "print" | "println") {
+                        if let Some(value) = arg_values.first() {
+                            let function = match (callee.as_str(), value) {
+                                ("print", IRValue::Str(_)) => Self::PRINT_STR,
+                                ("println", IRValue::Str(_)) => Self::PRINTLN_STR,
+                                ("print", _) => Self::PRINT_I64,
+                                ("println", _) => Self::PRINTLN_I64,
+                                _ => unreachable!(),
+                            };
+
+                            self.add_instr(
+                                func,
+                                IRInstruction::Call {
+                                    result: None,
+                                    function: function.to_string(),
+                                    args: arg_values,
+                                },
+                            );
+                        }
+                    }
+                    return IRValue::Const(0);
+                }
+
                 let dest = self.fresh_var();
                 self.add_instr(func, IRInstruction::Call {
                     result: Some(dest.clone()),
@@ -382,5 +433,269 @@ impl IRBuilder {
                 IRValue::Var(dest)
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::Parser;
+
+    #[test]
+    fn test_builtin_call_lowers_println_to_runtime_helper() {
+        let mut parser = Parser::new(
+            r#"
+            function helper() { return 1; }
+            helper();
+            println(42);
+            "#,
+        );
+        let program = parser.parse().unwrap();
+        let module = IRBuilder::new().build(&program);
+        let main = module
+            .functions
+            .iter()
+            .find(|func| func.name == "_user_main")
+            .unwrap();
+
+        let has_direct_println_call = main.instructions.iter().any(|instr| match instr {
+            IRInstruction::Call { function, .. } => function == "println",
+            _ => false,
+        });
+        let has_runtime_println = main.instructions.iter().any(|instr| match instr {
+            IRInstruction::Call { function, .. } => function == IRBuilder::PRINTLN_I64,
+            _ => false,
+        });
+        assert!(!has_direct_println_call);
+        assert!(has_runtime_println);
+    }
+
+    #[test]
+    fn test_build_no_else_block_div_eq_and_nested_function_decl_paths() {
+        let nested = Stmt::FunctionDecl {
+            name: "inner".to_string(),
+            params: vec![],
+            return_type: None,
+            body: vec![Stmt::Return(Some(Expr::Literal(Literal::Number(1))))],
+        };
+        let outer = Stmt::FunctionDecl {
+            name: "outer".to_string(),
+            params: vec![],
+            return_type: None,
+            body: vec![nested, Stmt::Return(None)],
+        };
+
+        let program = Program::new(vec![
+            outer,
+            Stmt::If {
+                condition: Expr::Literal(Literal::Boolean(true)),
+                then_branch: vec![Stmt::Expression(Expr::Literal(Literal::Number(1)))],
+                else_branch: None,
+            },
+            Stmt::Block(vec![Stmt::Expression(Expr::Literal(Literal::Number(2)))]),
+            Stmt::Expression(Expr::Binary {
+                left: Box::new(Expr::Literal(Literal::Number(8))),
+                op: BinaryOp::Div,
+                right: Box::new(Expr::Literal(Literal::Number(2))),
+            }),
+            Stmt::Expression(Expr::Binary {
+                left: Box::new(Expr::Literal(Literal::Number(1))),
+                op: BinaryOp::Eq,
+                right: Box::new(Expr::Literal(Literal::Number(1))),
+            }),
+        ]);
+
+        let module = IRBuilder::new().build(&program);
+        let main = module
+            .functions
+            .iter()
+            .find(|func| func.name == "_user_main")
+            .unwrap();
+        assert!(main
+            .instructions
+            .iter()
+            .any(|i| matches!(i, IRInstruction::Div { .. })));
+        assert!(main
+            .instructions
+            .iter()
+            .any(|i| matches!(i, IRInstruction::Cmp { op: crate::ir::CmpOp::Eq, .. })));
+
+        let outer_fn = module
+            .functions
+            .iter()
+            .find(|func| func.name == "outer")
+            .unwrap();
+        assert!(outer_fn
+            .instructions
+            .iter()
+            .any(|i| matches!(i, IRInstruction::Ret { value: None, .. })));
+    }
+
+    #[test]
+    fn test_user_defined_function_call_is_preserved() {
+        let mut parser = Parser::new(
+            r#"
+            function print(x) { return x; }
+            print(1);
+            "#,
+        );
+        let program = parser.parse().unwrap();
+        let module = IRBuilder::new().build(&program);
+        let main = module
+            .functions
+            .iter()
+            .find(|func| func.name == "_user_main")
+            .unwrap();
+
+        let has_user_print_call = main.instructions.iter().any(|instr| {
+            matches!(
+                instr,
+                IRInstruction::Call { function, .. } if function == "print"
+            )
+        });
+        assert!(has_user_print_call);
+    }
+
+    #[test]
+    fn test_string_print_lowering_uses_string_runtime_helper() {
+        let mut parser = Parser::new(
+            r#"
+            print("a");
+            println("b");
+            "#,
+        );
+        let program = parser.parse().unwrap();
+        let module = IRBuilder::new().build(&program);
+        let main = module
+            .functions
+            .iter()
+            .find(|func| func.name == "_user_main")
+            .unwrap();
+
+        let has_print_str = main.instructions.iter().any(|instr| {
+            matches!(
+                instr,
+                IRInstruction::Call { function, args, .. }
+                    if function == IRBuilder::PRINT_STR
+                        && matches!(args.first(), Some(IRValue::Str(value)) if value == "a")
+            )
+        });
+        let has_println_str = main.instructions.iter().any(|instr| {
+            matches!(
+                instr,
+                IRInstruction::Call { function, args, .. }
+                    if function == IRBuilder::PRINTLN_STR
+                        && matches!(args.first(), Some(IRValue::Str(value)) if value == "b")
+            )
+        });
+
+        assert!(has_print_str);
+        assert!(has_println_str);
+    }
+
+    #[test]
+    fn test_build_control_flow_and_assignment_paths() {
+        let mut parser = Parser::new(
+            r#"
+            let x;
+            x = 1;
+            if (x != 0) { x = x + 1; } else { x = x - 1; }
+            while (x > 0) { x = x - 1; }
+            x;
+            "#,
+        );
+        let program = parser.parse().unwrap();
+        let module = IRBuilder::new().build(&program);
+        let main = module
+            .functions
+            .iter()
+            .find(|func| func.name == "_user_main")
+            .unwrap();
+        assert!(main
+            .instructions
+            .iter()
+            .any(|i| matches!(i, IRInstruction::CondBranch { .. })));
+        assert!(main
+            .instructions
+            .iter()
+            .any(|i| matches!(i, IRInstruction::Jump(_))));
+    }
+
+    #[test]
+    fn test_build_literal_fallback_and_unknown_identifier() {
+        let program = Program::new(vec![
+            Stmt::Expression(Expr::Literal(Literal::String("s".to_string()))),
+            Stmt::Expression(Expr::Identifier("missing".to_string())),
+        ]);
+        let module = IRBuilder::new().build(&program);
+        let main = module
+            .functions
+            .iter()
+            .find(|func| func.name == "_user_main")
+            .unwrap();
+        assert!(main
+            .instructions
+            .iter()
+            .any(|i| matches!(i, IRInstruction::Ret { value: Some(IRValue::Const(0)), .. })));
+    }
+
+    #[test]
+    fn test_build_all_comparison_ops_and_logical_fallback() {
+        let exprs = vec![
+            Expr::Binary {
+                left: Box::new(Expr::Literal(Literal::Number(1))),
+                op: BinaryOp::Lt,
+                right: Box::new(Expr::Literal(Literal::Number(2))),
+            },
+            Expr::Binary {
+                left: Box::new(Expr::Literal(Literal::Number(1))),
+                op: BinaryOp::Le,
+                right: Box::new(Expr::Literal(Literal::Number(2))),
+            },
+            Expr::Binary {
+                left: Box::new(Expr::Literal(Literal::Number(2))),
+                op: BinaryOp::Gt,
+                right: Box::new(Expr::Literal(Literal::Number(1))),
+            },
+            Expr::Binary {
+                left: Box::new(Expr::Literal(Literal::Number(2))),
+                op: BinaryOp::Ge,
+                right: Box::new(Expr::Literal(Literal::Number(1))),
+            },
+            Expr::Binary {
+                left: Box::new(Expr::Literal(Literal::Boolean(true))),
+                op: BinaryOp::And,
+                right: Box::new(Expr::Literal(Literal::Boolean(false))),
+            },
+            Expr::Binary {
+                left: Box::new(Expr::Literal(Literal::Boolean(true))),
+                op: BinaryOp::Or,
+                right: Box::new(Expr::Literal(Literal::Boolean(false))),
+            },
+        ];
+
+        let program = Program::new(
+            exprs.into_iter()
+                .map(Stmt::Expression)
+                .collect::<Vec<_>>(),
+        );
+        let module = IRBuilder::new().build(&program);
+        let main = module
+            .functions
+            .iter()
+            .find(|func| func.name == "_user_main")
+            .unwrap();
+        assert!(main
+            .instructions
+            .iter()
+            .any(|i| matches!(i, IRInstruction::Cmp { op: crate::ir::CmpOp::Lt, .. })));
+        assert!(main
+            .instructions
+            .iter()
+            .any(|i| matches!(i, IRInstruction::Cmp { op: crate::ir::CmpOp::Ge, .. })));
+        assert!(main
+            .instructions
+            .iter()
+            .any(|i| matches!(i, IRInstruction::Add { lhs: IRValue::Const(0), rhs: IRValue::Const(0), .. })));
     }
 }

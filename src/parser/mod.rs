@@ -469,4 +469,137 @@ mod tests {
         let program = parser.parse().unwrap();
         assert_eq!(program.statements.len(), 1);
     }
+
+    #[test]
+    fn test_parse_assignment() {
+        let mut parser = Parser::new("let x = 1; x = 2;");
+        let program = parser.parse().unwrap();
+        assert_eq!(program.statements.len(), 2);
+        assert!(matches!(program.statements[1], Stmt::Assignment { .. }));
+    }
+
+    #[test]
+    fn test_parse_function_if_else_while_and_call() {
+        let src = r#"
+            function add(a: int, b: int): int {
+                if (a == b) { return a; } else { return b; }
+            }
+            while (1) { add(1, 2); }
+        "#;
+        let mut parser = Parser::new(src);
+        let program = parser.parse().unwrap();
+        assert_eq!(program.statements.len(), 2);
+        assert!(matches!(program.statements[0], Stmt::FunctionDecl { .. }));
+        assert!(matches!(program.statements[1], Stmt::While { .. }));
+    }
+
+    #[test]
+    fn test_parse_unary_grouping_and_comparisons() {
+        let mut parser = Parser::new("let x = -(1 + 2) * 3 < 10;");
+        let program = parser.parse().unwrap();
+        assert_eq!(program.statements.len(), 1);
+        assert!(matches!(
+            &program.statements[0],
+            Stmt::VariableDecl {
+                init: Some(Expr::Binary { .. }),
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn test_parse_block_statement() {
+        let mut parser = Parser::new("{ let x = 1; return x; }");
+        let program = parser.parse().unwrap();
+        assert_eq!(program.statements.len(), 1);
+        assert!(matches!(program.statements[0], Stmt::Block(_)));
+    }
+
+    #[test]
+    fn test_parse_return_without_value() {
+        let mut parser = Parser::new("function f() { return; }");
+        let program = parser.parse().unwrap();
+        assert!(matches!(program.statements[0], Stmt::FunctionDecl { .. }));
+    }
+
+    #[test]
+    fn test_parse_invalid_assignment_target_error() {
+        let mut parser = Parser::new("(1 + 2) = 3;");
+        let err = parser.parse().unwrap_err();
+        assert!(err.contains("Invalid assignment target"));
+    }
+
+    #[test]
+    fn test_parse_missing_identifier_error() {
+        let mut parser = Parser::new("let = 1;");
+        let err = parser.parse().unwrap_err();
+        assert!(err.contains("Expected identifier"));
+    }
+
+    #[test]
+    fn test_parse_missing_paren_error() {
+        let mut parser = Parser::new("if (1 { return 1; }");
+        let err = parser.parse().unwrap_err();
+        assert!(err.contains("Expected RightParen"));
+    }
+
+    #[test]
+    fn test_parse_unexpected_primary_error() {
+        let mut parser = Parser::new(";");
+        let err = parser.parse().unwrap_err();
+        assert!(err.contains("Unexpected token"));
+    }
+
+    #[test]
+    fn test_parse_percent_operator_hits_error_path() {
+        let mut parser = Parser::new("let x = 5 % 2;");
+        let err = parser.parse().unwrap_err();
+        assert!(err.contains("Expected multiplication operator"));
+    }
+
+    #[test]
+    fn test_parse_typed_decl_without_init_and_if_without_else() {
+        let mut parser = Parser::new("let x: int; if (1) { x = 2; }");
+        let program = parser.parse().unwrap();
+        assert_eq!(program.statements.len(), 2);
+    }
+
+    #[test]
+    fn test_parse_float_string_boolean_and_more_ops() {
+        let mut parser = Parser::new(
+            r#"
+            let a = 1.5;
+            let b = "s";
+            let c = true;
+            let d = 8 / 2 - 1;
+            let e = 1 != 2;
+            let f = 1 <= 2;
+            let g = 2 > 1;
+            let h = 2 >= 1;
+            "#,
+        );
+        let program = parser.parse().unwrap();
+        assert_eq!(program.statements.len(), 8);
+    }
+
+    #[test]
+    fn test_direct_operator_consumers_error_paths() {
+        let mut parser = Parser::new(";");
+        let cmp_err = parser.consume_comparison().unwrap_err();
+        assert!(cmp_err.contains("Expected comparison operator"));
+
+        let add_err = parser.consume_addition().unwrap_err();
+        assert!(add_err.contains("Expected addition operator"));
+
+        let mul_err = parser.consume_multiplication().unwrap_err();
+        assert!(mul_err.contains("Expected multiplication operator"));
+    }
+
+    #[test]
+    fn test_parser_new_falls_back_to_eof_on_lexer_error() {
+        let source = format!("let x = {};", "9".repeat(200));
+        let mut parser = Parser::new(&source);
+        let program = parser.parse().unwrap();
+        assert!(program.statements.is_empty());
+    }
 }

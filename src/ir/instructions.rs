@@ -7,6 +7,7 @@ use std::fmt;
 pub enum IRValue {
     Const(i64),
     Var(String),
+    Str(String),
 }
 
 impl fmt::Display for IRValue {
@@ -14,6 +15,7 @@ impl fmt::Display for IRValue {
         match self {
             IRValue::Const(n) => write!(f, "{}", n),
             IRValue::Var(name) => write!(f, "%{}", name),
+            IRValue::Str(value) => write!(f, "{:?}", value),
         }
     }
 }
@@ -155,14 +157,6 @@ impl fmt::Display for IRInstruction {
                 write!(f, "  %{} = div {} {}, {}", dest, ty, lhs, rhs)
             }
             IRInstruction::Cmp { dest, op, lhs, rhs } => {
-                let op_str = match op {
-                    CmpOp::Eq => "eq",
-                    CmpOp::Ne => "ne",
-                    CmpOp::Lt => "lt",
-                    CmpOp::Le => "le",
-                    CmpOp::Gt => "gt",
-                    CmpOp::Ge => "ge",
-                };
                 write!(f, "  %{} = cmp {} {}, {}", dest, op, lhs, rhs)
             }
             IRInstruction::Call {
@@ -202,6 +196,123 @@ impl fmt::Display for IRInstruction {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_display_all_cmp_ops() {
+        assert_eq!(format!("{}", CmpOp::Eq), "eq");
+        assert_eq!(format!("{}", CmpOp::Ne), "ne");
+        assert_eq!(format!("{}", CmpOp::Lt), "lt");
+        assert_eq!(format!("{}", CmpOp::Le), "le");
+        assert_eq!(format!("{}", CmpOp::Gt), "gt");
+        assert_eq!(format!("{}", CmpOp::Ge), "ge");
+    }
+
+    #[test]
+    fn test_display_values_and_types() {
+        assert_eq!(format!("{}", IRValue::Const(3)), "3");
+        assert_eq!(format!("{}", IRValue::Var("x".to_string())), "%x");
+        assert_eq!(format!("{}", IRValue::Str("x".to_string())), "\"x\"");
+        assert_eq!(format!("{}", IRType::I64), "i64");
+        assert_eq!(format!("{}", IRType::Void), "void");
+    }
+
+    #[test]
+    fn test_display_instructions() {
+        let insns = vec![
+            IRInstruction::Alloc {
+                dest: "a".to_string(),
+                ty: IRType::I64,
+            },
+            IRInstruction::Store {
+                dest: "a".to_string(),
+                ty: IRType::I64,
+                value: IRValue::Const(1),
+            },
+            IRInstruction::Load {
+                dest: "b".to_string(),
+                ty: IRType::I64,
+                ptr: "a".to_string(),
+            },
+            IRInstruction::Add {
+                dest: "c".to_string(),
+                ty: IRType::I64,
+                lhs: IRValue::Const(1),
+                rhs: IRValue::Const(2),
+            },
+            IRInstruction::Sub {
+                dest: "d".to_string(),
+                ty: IRType::I64,
+                lhs: IRValue::Const(3),
+                rhs: IRValue::Const(1),
+            },
+            IRInstruction::Mul {
+                dest: "e".to_string(),
+                ty: IRType::I64,
+                lhs: IRValue::Const(2),
+                rhs: IRValue::Const(4),
+            },
+            IRInstruction::Div {
+                dest: "f".to_string(),
+                ty: IRType::I64,
+                lhs: IRValue::Const(8),
+                rhs: IRValue::Const(2),
+            },
+            IRInstruction::Cmp {
+                dest: "g".to_string(),
+                op: CmpOp::Eq,
+                lhs: IRValue::Const(1),
+                rhs: IRValue::Const(1),
+            },
+            IRInstruction::Call {
+                result: Some("r".to_string()),
+                function: "foo".to_string(),
+                args: vec![IRValue::Const(1)],
+            },
+            IRInstruction::Call {
+                result: None,
+                function: "bar".to_string(),
+                args: vec![],
+            },
+            IRInstruction::Label("L0".to_string()),
+            IRInstruction::Jump("L1".to_string()),
+            IRInstruction::CondBranch {
+                condition: IRValue::Const(1),
+                true_label: "L2".to_string(),
+                false_label: "L3".to_string(),
+            },
+            IRInstruction::Ret {
+                ty: IRType::I64,
+                value: Some(IRValue::Const(0)),
+            },
+            IRInstruction::Ret {
+                ty: IRType::Void,
+                value: None,
+            },
+        ];
+
+        for insn in insns {
+            let s = format!("{}", insn);
+            assert!(!s.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_ir_function_display_and_add_instruction() {
+        let mut f = IRFunction::new("main".to_string(), IRType::I64);
+        f.params.push(("arg0".to_string(), IRType::I64));
+        f.add_instruction(IRInstruction::Ret {
+            ty: IRType::I64,
+            value: Some(IRValue::Const(0)),
+        });
+        let text = format!("{}", f);
+        assert!(text.contains("define i64 @main(i64 %arg0)"));
+        assert!(text.contains("ret i64 0"));
     }
 }
 

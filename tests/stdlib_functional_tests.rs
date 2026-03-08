@@ -66,10 +66,11 @@ fn test_semantic_accepts_cross_module_stdlib_calls() {
 }
 
 #[test]
-fn test_ir_builder_skips_builtin_calls_without_shadowing() {
+fn test_ir_builder_lowers_print_calls_and_skips_other_builtins() {
     let program = parse(
         r#"
         print(1);
+        println("x");
         abs(2);
         strlen("abc");
         push(0, 1);
@@ -83,14 +84,23 @@ fn test_ir_builder_skips_builtin_calls_without_shadowing() {
         .find(|func| func.name == "_user_main")
         .unwrap();
 
-    let has_builtin_call = main.instructions.iter().any(|instr| match instr {
-        IRInstruction::Call { function, .. } => matches!(
-            function.as_str(),
-            "print" | "abs" | "strlen" | "push"
-        ),
+    let has_runtime_print = main.instructions.iter().any(|instr| match instr {
+        IRInstruction::Call { function, .. } => function == "ziv_print_i64",
         _ => false,
     });
-    assert!(!has_builtin_call);
+    let has_runtime_println_str = main.instructions.iter().any(|instr| match instr {
+        IRInstruction::Call { function, .. } => function == "ziv_println_str",
+        _ => false,
+    });
+    let has_skipped_builtin_call = main.instructions.iter().any(|instr| match instr {
+        IRInstruction::Call { function, .. } => {
+            matches!(function.as_str(), "abs" | "strlen" | "push")
+        }
+        _ => false,
+    });
+    assert!(has_runtime_print);
+    assert!(has_runtime_println_str);
+    assert!(!has_skipped_builtin_call);
 }
 
 #[test]
@@ -130,10 +140,17 @@ fn test_ir_builder_preserves_shadowed_builtin_calls() {
             IRInstruction::Call { function, .. } if function == "println"
         )
     });
+    let has_runtime_println = main.instructions.iter().any(|instr| {
+        matches!(
+            instr,
+            IRInstruction::Call { function, .. } if function == "ziv_println_i64"
+        )
+    });
 
     assert!(has_user_print);
     assert!(has_user_abs);
     assert!(!has_builtin_println);
+    assert!(has_runtime_println);
 }
 
 #[test]

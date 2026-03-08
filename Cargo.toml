@@ -45,7 +45,7 @@ lalrpop = "0.20"
 [dev-dependencies]
 console = "=0.15.8"
 insta = "1.34"
-tempfile = "3.10"
+tempfile = "=3.10.1"
 
 [profile.release]
 opt-level = 3

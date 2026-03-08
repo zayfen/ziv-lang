@@ -23,9 +23,15 @@ pub use x86_64::X86_64Generator;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ir::IRModule;
 
     #[test]
     fn test_codegen_module() {
-        assert!(true);
+        let _ = ARM64Generator::new();
+        let _ = X86_64Generator::new();
+        let _ = LLVMTextGenerator::new();
+        let mut gen = CraneliftGenerator::default();
+        let module = IRModule::new();
+        assert!(gen.generate(&module).is_ok());
     }
 }

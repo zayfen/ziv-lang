@@ -27,7 +27,7 @@ fn main() {
     
     // Step 3: Semantic Analysis
     println!("Step 3: Semantic Analysis");
-    let analyzer = SemanticAnalyzer::new();
+    let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(&program);
     println!("  Status: {:?}\n", result);
     
@@ -40,13 +40,13 @@ fn main() {
     
     // Step 5: Code Generation (LLVM IR)
     println!("Step 5: LLVM IR Generation");
-    let gen = LLVMTextGenerator::new();
+    let mut gen = LLVMTextGenerator::new();
     let output = gen.generate(&module).unwrap();
     println!("{}\n", output);
     
     // Step 6: Code Generation (x86_64)
     println!("Step 6: x86_64 Assembly Generation");
-    let gen = X86_64Generator::new();
+    let mut gen = X86_64Generator::new();
     let output = gen.generate(&module).unwrap();
     println!("{}\n", output);
     

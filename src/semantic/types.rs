@@ -78,4 +78,29 @@ mod tests {
         let arr_type = Type::Array(Box::new(Type::Int));
         assert_eq!(format!("{}", arr_type), "int[]");
     }
+
+    #[test]
+    fn test_type_from_str_variants() {
+        assert_eq!(Type::from("i64"), Type::Int);
+        assert_eq!(Type::from("f64"), Type::Float);
+        assert_eq!(Type::from("str"), Type::String);
+        assert_eq!(Type::from("boolean"), Type::Bool);
+        assert_eq!(Type::from("void"), Type::Void);
+        assert_eq!(Type::from("null"), Type::Null);
+        assert_eq!(Type::from("any"), Type::Any);
+        assert_eq!(Type::from("unknown"), Type::Any);
+    }
+
+    #[test]
+    fn test_display_void_null_any_and_function() {
+        assert_eq!(format!("{}", Type::Void), "void");
+        assert_eq!(format!("{}", Type::Null), "null");
+        assert_eq!(format!("{}", Type::Any), "any");
+
+        let f = Type::Function {
+            params: vec![Type::Int, Type::String],
+            return_type: Box::new(Type::Bool),
+        };
+        assert_eq!(format!("{}", f), "(int, string) -> bool");
+    }
 }
