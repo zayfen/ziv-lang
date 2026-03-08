@@ -24,10 +24,9 @@ Ziv 是一门正在快速演进的系统编程语言，语法风格接近 JavaSc
 
 ## 重要说明
 
-- 当前可执行运行时默认实现了：
-  - 输出相关内置函数（`print` / `println`）
-  - `container` 模块（`Vector` / `HashMap` 对应函数）
-- 其余标准库函数已完成符号注册、语义识别与示例覆盖，用于后续宿主实现或链接扩展运行时。
+- 当前默认可执行运行时已内置并可调用全部 10 类标准库函数（共 117 个）。
+- 这些函数已覆盖语义注册、IR 降级、链接与 examples/测试验证链路。
+- `net` / `crypto` / `js` 中部分能力当前采用轻量实现，目标是提供稳定接口与可重复测试结果；若需要完整生产级协议栈与安全语义，建议通过外部运行时对象或宿主库替换。
 
 ## 快速开始
 
@@ -48,6 +47,14 @@ cargo build --release
 
 ```bash
 cargo test --workspace --all-targets
+```
+
+### 运行标准库示例（批量）
+
+```bash
+for f in examples/stdlib/*.ziv; do
+  ./target/debug/ziv "$f" -o /tmp/ziv_example && /tmp/ziv_example </dev/null
+done
 ```
 
 ## 示例目录

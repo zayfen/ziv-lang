@@ -23,13 +23,22 @@
 
 ### 2.2 IR 阶段（调用降级）
 
-- `print/println` 会被降级为运行时 helper 调用（例如 `ziv_println_i64`）
-- `container` 模块函数（`vector*` / `hashMap*`）会降级为直接 runtime 调用
-- 其他标准库函数当前主要用于“可解析/可检查/可编译”能力，后续可接宿主实现
+- `io`：`print/println/eprint/eprintln/read/input/readAll/printf/flush`
+- `math`：`abs/min/max/sqrt/pow/floor/ceil/round`
+- `string`：`strlen/concat/substr/char_at/to_upper/to_lower/trim/contains`
+- `array`：`push/pop/arrlen/get/set/first/last/reverse`
+- `container`：`vector*` / `hashMap*`
+- `js`：`parseInt/parseFloat/.../map/filter/reduce`
+- `filesystem`：`readFile/writeFile/.../cwd`
+- `net`：`fetch/http*/download/upload/dnsLookup/ping/websocketConnect`
+- `crypto`：`md5/sha*/hmac/pbkdf2/encrypt/decrypt/sign/verify/random*`
+- `encoding`：`base64/hex/url/utf8/csv/query`
+
+以上函数在 IR 中都会降级为 runtime 符号调用，最终链接到可执行文件。
 
 ### 2.3 链接阶段（可执行文件）
 
-编译器会生成并链接一个运行时对象（包含输出 helper），保证基本输出可运行。
+编译器会生成并链接一个运行时对象（由内嵌 C runtime 编译得到），包含标准库函数实现，保证可执行文件可直接运行标准库调用。
 
 ## 3. 标准库分类
 
@@ -111,14 +120,22 @@ cargo test --workspace --all-targets
 ./target/debug/ziv examples/stdlib/hello.ziv -o /tmp/hello && /tmp/hello
 ```
 
+批量验证 stdlib 示例：
+
+```bash
+for f in examples/stdlib/*.ziv; do
+  ./target/debug/ziv "$f" -o /tmp/ziv_example && /tmp/ziv_example </dev/null
+done
+```
+
 ## 6. 当前实现边界
 
-- 已稳定可执行：`print/println` 输出链路、`container` 运行时行为
-- 已完成注册与编译链路覆盖：其余标准库函数（可用于语义检查、IR 构建、接口对齐）
-- 面向生产的文件系统/网络/加解密真实执行能力，建议通过宿主运行时对象或外部链接库补齐
+- 117 个标准库函数均可执行、可编译、可测试。
+- `net` / `crypto` / `js` 的部分函数当前为轻量实现（接口稳定、结果可预测），优先服务语言回归测试与示例验证。
+- 若业务需要完整生产能力（例如真实 HTTP 客户端栈、严格密码学实现、复杂 JSON 语义），建议替换为外部链接 runtime 或宿主库实现。
 
 ## 7. 推荐实践
 
 - 把标准库函数当作稳定 API 面设计代码
-- 对涉及外部副作用（文件、网络、加密）的函数，在当前阶段优先通过测试桩/宿主注入来验证
-- 在 examples 中保留最小可运行样例，和 CI 测试保持一致
+- 对外部副作用函数（文件/网络/加密）同时保留“语义回归测试”和“宿主集成测试”两层验证
+- 在 examples 中保留可观测输出与副作用校验点，保证 CI 能验证真实行为而不是仅检查可编译

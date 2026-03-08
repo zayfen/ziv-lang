@@ -18,4 +18,7 @@
 ```bash
 cargo test --workspace --all-targets
 ./target/debug/ziv examples/stdlib/hello.ziv -o /tmp/hello && /tmp/hello
+for f in examples/stdlib/*.ziv; do
+  ./target/debug/ziv "$f" -o /tmp/ziv_example && /tmp/ziv_example </dev/null
+done
 ```
